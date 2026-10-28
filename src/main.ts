@@ -1,5 +1,7 @@
-import '@fontsource-variable/inter-tight';
-import '@fontsource-variable/jetbrains-mono';
+import '@fontsource/libre-caslon-text/latin-400.css';
+import '@fontsource/libre-caslon-text/latin-700.css';
+import '@fontsource-variable/league-spartan';
+import '@fontsource-variable/lilex';
 import './styles/tokens.css';
 import './styles/main.css';
 
@@ -7,6 +9,7 @@ import { Vector3 } from 'three';
 import { gsap } from 'gsap';
 import { D } from './core/ease';
 import { Renderer } from './core/Renderer';
+import { Theme } from './core/Theme';
 import { Timeline } from './core/Timeline';
 import { Input } from './core/Input';
 import { Background } from './scene/Background';
@@ -51,6 +54,7 @@ async function boot(): Promise<void> {
   const tPost = preloader.task('post');
   const tCompile = preloader.task('compile');
 
+  const theme = new Theme();
   const renderer = new Renderer(canvas);
   const input = new Input();
   const cursor = new Cursor(document.body);
@@ -296,6 +300,9 @@ async function boot(): Promise<void> {
     }
   });
   hud.onSelect((i) => sections.goTo(i));
+  hud.setTheme(theme.current);
+  hud.onTheme(() => theme.toggle());
+  theme.onChange((t) => hud.setTheme(t));
   hud.onSound((on) => void sound.setEnabled(on).then(() => on && sound.play('tick')));
 
   window.addEventListener('resize', () => {

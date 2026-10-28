@@ -17,6 +17,14 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   touch-action: manipulation;
+  transition:
+    background-color var(--d-theme) var(--ease),
+    color var(--d-theme) var(--ease);
+}
+
+::selection {
+  background: var(--c-ink);
+  color: var(--c-bg-0);
 }
 
 body {
@@ -54,9 +62,8 @@ a {
 }
 
 :focus-visible {
-  outline: 1px solid var(--c-accent);
+  outline: 2px solid var(--c-ink);
   outline-offset: 4px;
-  border-radius: 2px;
 }
 
 .mono {
@@ -187,7 +194,7 @@ a {
   border-radius: 999px;
   font-size: var(--t-xs);
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--tracking-wider);
   overflow: hidden;
   isolation: isolate;
   user-select: none;
@@ -199,7 +206,7 @@ a {
 }
 
 .gate__hint:hover {
-  border-color: rgba(200, 245, 96, 0.5);
+  border-color: var(--c-accent);
 }
 
 .gate__hint-fill {
@@ -301,7 +308,7 @@ a {
 .cursor__icon svg {
   width: 100%;
   height: 100%;
-  fill: rgba(10, 11, 14, 0.6);
+  fill: color-mix(in srgb, var(--c-bg-0) 60%, transparent);
   stroke: var(--c-ink);
   stroke-width: 1.4;
   stroke-linecap: round;
@@ -552,25 +559,25 @@ a {
 .caption__dots i {
   width: 3.2cqw;
   height: 2px;
-  background: rgba(200, 245, 96, 0.3);
+  background: color-mix(in srgb, var(--c-screen-ink) 30%, transparent);
   transition: background var(--d-2) var(--ease);
 }
 
 .caption__dots i.is-on {
-  background: var(--c-accent);
+  background: var(--c-screen-ink);
 }
 
 .caption__title {
   font-size: clamp(12px, 6cqw, 26px);
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: #f2ffd6;
+  color: var(--c-screen-ink);
 }
 
 .caption__body {
   font-size: clamp(10px, 3.4cqw, 15px);
   line-height: 1.4;
-  color: rgba(236, 245, 214, 0.72);
+  color: var(--c-screen-dim);
   max-width: 44ch;
 }
 
@@ -641,7 +648,7 @@ a {
 }
 
 .hud__seg:hover .hud__seg-fill {
-  background: rgba(236, 232, 223, 0.32);
+  background: var(--c-ink-faint);
 }
 
 .hud__counter {
@@ -660,9 +667,39 @@ a {
   color: var(--c-ink-dim);
 }
 
-.hud__sound {
+.hud__controls {
   top: var(--gutter);
   right: var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+}
+
+.hud__theme {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--c-ink-dim);
+  padding: var(--s-2) 0;
+  transition: color var(--d-1) var(--ease);
+}
+
+.hud__theme:hover {
+  color: var(--c-ink);
+}
+
+/* Half-filled square: the brand is square, the fill flips with the theme. */
+.hud__theme-dot {
+  width: 10px;
+  height: 10px;
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.hud__sound {
   display: flex;
   align-items: center;
   gap: var(--s-2);
@@ -723,9 +760,8 @@ a {
   padding: 6px 10px;
   font-size: 11px;
   line-height: 1.4;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid var(--c-line);
-  border-radius: 4px;
+  color: var(--c-bg-0);
+  background: var(--c-ink);
   pointer-events: none;
 }
 
