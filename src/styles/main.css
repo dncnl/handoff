@@ -820,27 +820,7 @@ a {
   width: 2px;
   height: 2px;
   background: currentColor;
-  transition: height var(--d-2) var(--ease);
-}
-
-.hud__sound[aria-pressed='true'] .hud__sound-bars i {
-  animation: eq var(--d-3) var(--ease) infinite alternate;
-}
-
-.hud__sound[aria-pressed='true'] .hud__sound-bars i:nth-child(2) {
-  animation-delay: -0.2s;
-}
-.hud__sound[aria-pressed='true'] .hud__sound-bars i:nth-child(3) {
-  animation-delay: -0.6s;
-}
-.hud__sound[aria-pressed='true'] .hud__sound-bars i:nth-child(4) {
-  animation-delay: -0.4s;
-}
-
-@keyframes eq {
-  to {
-    height: 10px;
-  }
+  transition: height 0.12s linear;
 }
 
 /* ---------- Dev FPS ---------- */
@@ -875,6 +855,11 @@ a {
 
   .hero__tagline {
     font-size: var(--t-xs);
+  }
+
+  /* The wordmark already says who this is; keep the stacked header short. */
+  .hero__kicker {
+    display: none;
   }
 
   .sections {

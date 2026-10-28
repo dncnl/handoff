@@ -180,7 +180,8 @@ void main() {
   // Vertical sheen so the glass doesn't read as a flat card.
   col += uColor * 0.06 * smoothstep(0.2, 1.0, vScreenUv.y);
 
-  float alpha = tile * screen * vAlpha * uVisible * mix(0.55, 1.0, vSettle);
+  // Loose tiles stay faint so the scatter reads as dust, not confetti.
+  float alpha = tile * screen * vAlpha * uVisible * mix(0.12, 1.0, vSettle * vSettle);
   gl_FragColor = vec4(col, alpha);
 }
 `;

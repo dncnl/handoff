@@ -38,7 +38,8 @@ export class Sound {
         build: make(
           synth(1.2, (t) => {
             const env = Math.sin(Math.min(1, t / 1.2) * Math.PI) ** 2;
-            const s = [440, 660, 990].reduce(
+            // A-minor triad, so the swell sits inside the background music's key.
+            const s = [440, 523.25, 659.25].reduce(
               (a, f, i) => a + Math.sin(t * 2 * Math.PI * f * (1 + t * 0.02 * i)),
               0,
             );

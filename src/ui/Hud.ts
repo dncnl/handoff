@@ -14,6 +14,7 @@ export class Hud {
   private soundCb: ((on: boolean) => void) | null = null;
   private soundOn = false;
   private themeLabel: HTMLElement;
+  private bars: HTMLElement[];
   private themeCb: (() => void) | null = null;
 
   constructor(
@@ -72,8 +73,14 @@ export class Hud {
       this.soundCb?.(this.soundOn);
     });
 
+    this.bars = [...this.el.querySelectorAll<HTMLElement>('.hud__sound-bars i')];
     this.themeLabel = this.el.querySelector('.hud__theme-label') as HTMLElement;
     this.el.querySelector('.hud__theme')?.addEventListener('click', () => this.themeCb?.());
+  }
+
+  /** Equaliser bars follow the music: 0–1 per bar. */
+  setLevels(levels: number[]): void {
+    this.bars.forEach((b, i) => (b.style.height = `${2 + (levels[i] ?? 0) * 8}px`));
   }
 
   onTheme(cb: () => void): void {

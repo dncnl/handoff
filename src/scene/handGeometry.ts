@@ -428,8 +428,8 @@ function buildPalm(b: Builder, fingerMcp: number[], thumbCmc: number, root: numb
       // Skin weights: the thenar mound rides with the thumb, the knuckle ridge with each finger.
       const w: [number, number][] = [];
       const wT =
-        0.45 *
-        Math.exp(-((x - 0.3) ** 2 + (y - 0.27) ** 2) / (2 * 0.13 * 0.13)) *
+        0.32 *
+        Math.exp(-((x - 0.3) ** 2 + (y - 0.27) ** 2) / (2 * 0.16 * 0.16)) *
         smooth(0.08, 0.25, x);
       w.push([thumbCmc, wT]);
       let wf = 0;

@@ -26,6 +26,7 @@ import { Cursor } from './ui/Cursor';
 import { Sections } from './ui/Sections';
 import { ScreenCaption } from './ui/ScreenCaption';
 import { Sound } from './audio/Sound';
+import { Music } from './audio/Music';
 import { content } from './content/content';
 
 type Phase = 'loading' | 'enter' | 'gate' | 'grip' | 'build' | 'reveal' | 'sections';
@@ -62,6 +63,9 @@ async function boot(): Promise<void> {
   const input = new Input();
   const cursor = new Cursor(document.body);
   const sound = new Sound();
+  const music = new Music();
+  const eq = [0, 0, 0, 0];
+  let hudRef: Hud | null = null;
   let palette = readPalette();
   const applyBloom = () => {
     renderer.bloomScale = palette.light ? 0.35 : 1;
@@ -135,6 +139,7 @@ async function boot(): Promise<void> {
 
     cursor.update(dt);
     fps?.update(dt);
+    if (music.playing) hudRef?.setLevels(music.levels(eq));
   });
 
   // --- Loading ---------------------------------------------------------------
@@ -165,6 +170,7 @@ async function boot(): Promise<void> {
   const hero = new Hero(overlay, content);
   const sections = new Sections(overlay, content, reduced);
   const hud = new Hud(overlay, content);
+  hudRef = hud;
   caption = new ScreenCaption(overlay, content.whatIBuild.kinds);
   gate = new Gate(overlay, input, renderer, theHand, cursor);
   const theGate = gate;
@@ -190,6 +196,7 @@ async function boot(): Promise<void> {
     tl.call(() => {
       if (skipping) return;
       sound.play('grip');
+      music.duck();
       navigator.vibrate?.(24);
     })
       .fromTo(fx, { shake: 1 }, { shake: 0, duration: D.m, immediateRender: false }, 0)
@@ -204,7 +211,10 @@ async function boot(): Promise<void> {
     const st = () => layout('stage');
     tl.call(() => {
       pose('palmUp', D.l);
-      if (!skipping) sound.play('build', 0.5);
+      if (!skipping) {
+        sound.play('build', 0.5);
+        music.duck(0.35, 1);
+      }
     })
       .to(renderer.framing, { x: () => st().x, y: () => st().y, duration: D.l }, 0)
       .to(
@@ -326,7 +336,15 @@ async function boot(): Promise<void> {
     tweenColor(handRimColor.value, palette.glow, d);
     applyBloom();
   });
-  hud.onSound((on) => void sound.setEnabled(on).then(() => on && sound.play('tick')));
+  hud.onSound((on) => {
+    // Music starts inside the click so the browser allows the AudioContext.
+    if (on) music.start();
+    else {
+      music.stop();
+      hud.setLevels([0, 0, 0, 0]);
+    }
+    void sound.setEnabled(on).then(() => on && sound.play('tick'));
+  });
 
   window.addEventListener('resize', () => {
     if (phase !== 'sections') return;

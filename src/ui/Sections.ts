@@ -1,7 +1,6 @@
 import { gsap } from 'gsap';
 import { D } from '../core/ease';
 import type { Content } from '../content/content';
-import { techIcon } from './techIcon';
 
 const esc = (s: string) =>
   s.replace(
@@ -20,7 +19,10 @@ function panelBody(c: Content, id: Content['sections'][number]['id']): string {
         .map(
           (g) =>
             `<div class="skills__group"><dt class="mono">${esc(g.name)}</dt><dd><ul class="chips">${g.items
-              .map((i) => `<li>${techIcon(i.slug)}<span>${esc(i.name)}</span></li>`)
+              .map(
+                (i) =>
+                  `<li${i.slug ? ` data-slug="${esc(i.slug)}"` : ''}><span>${esc(i.name)}</span></li>`,
+              )
               .join('')}</ul></dd></div>`,
         )
         .join('')}</dl>`;
@@ -93,6 +95,12 @@ export class Sections {
       this.panels.push(p);
     });
     root.append(this.el);
+    // Stack logos are code-split: the skills panel is never the first one shown.
+    void import('./techIcon').then(({ techIcon }) =>
+      this.el
+        .querySelectorAll<HTMLElement>('[data-slug]')
+        .forEach((li) => li.insertAdjacentHTML('afterbegin', techIcon(li.dataset.slug))),
+    );
 
     window.addEventListener('wheel', this.onWheel, { passive: true });
     window.addEventListener('keydown', this.onKey);
