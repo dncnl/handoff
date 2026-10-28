@@ -41,6 +41,10 @@ export class Music {
   private nextChordAt = 0;
   private chord = 0;
   playing = false;
+  /** Effect inputs for other synths on this context: straight out, into the room, into the echo. */
+  fxDry!: GainNode;
+  fxWet!: GainNode;
+  fxEcho!: GainNode;
 
   constructor() {
     document.addEventListener('visibilitychange', () => {
@@ -78,6 +82,19 @@ export class Music {
     this.timer = null;
     const ctx = this.ctx;
     this.stopTimer = window.setTimeout(() => void ctx.suspend(), 1700);
+  }
+
+  get context(): AudioContext | null {
+    return this.ctx;
+  }
+
+  /** Holds the music at `level` (1 = full) until told otherwise. */
+  setDuck(level: number, tc = 0.05): void {
+    if (!this.ctx || !this.playing) return;
+    const g = this.duckGain.gain;
+    const now = this.ctx.currentTime;
+    g.cancelScheduledValues(now);
+    g.setTargetAtTime(level, now, tc);
   }
 
   /** Dips the music briefly so a one-shot sound can sit on top. */
@@ -138,6 +155,13 @@ export class Music {
     this.bus.connect(dry).connect(this.duckGain);
     this.bus.connect(reverb).connect(wet).connect(this.duckGain);
     this.duckGain.connect(this.master).connect(this.analyser).connect(ctx.destination);
+
+    // Effects skip the breathing filter and the duck, so they sit on top of the music.
+    this.fxDry = new GainNode(ctx, { gain: 1 });
+    this.fxDry.connect(this.master);
+    this.fxWet = new GainNode(ctx, { gain: 0.7 });
+    this.fxWet.connect(reverb);
+    this.fxEcho = this.delayIn;
     return ctx;
   }
 

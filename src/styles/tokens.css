@@ -30,6 +30,8 @@
   --f-hero: 'League Spartan Variable', 'League Spartan', system-ui, sans-serif;
   --f-mono: 'Lilex Variable', 'Lilex', 'IBM Plex Mono', ui-monospace, monospace;
   --f-sans: var(--f-mono);
+  /* The preloader countdown keeps the original face. */
+  --f-count: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, Consolas, monospace;
   --t-xs: 0.6875rem;
   --t-sm: 0.875rem;
   --t-md: 1rem;

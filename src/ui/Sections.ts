@@ -38,7 +38,6 @@ function panelBody(c: Content, id: Content['sections'][number]['id']): string {
     case 'github':
       return `
         <dl class="stats">
-          <div><dt class="mono">Contributions, last year</dt><dd>${c.github.contributions}</dd></div>
           <div><dt class="mono">Public repositories</dt><dd>${c.github.publicRepos}</dd></div>
         </dl>
         <a class="link mono" href="${esc(c.github.url)}" target="_blank" rel="noopener">github.com/${esc(c.github.username)} ↗</a>`;

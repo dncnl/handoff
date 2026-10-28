@@ -2,6 +2,7 @@ import '@fontsource/libre-caslon-text/latin-400.css';
 import '@fontsource/libre-caslon-text/latin-700.css';
 import '@fontsource-variable/league-spartan';
 import '@fontsource-variable/lilex';
+import '@fontsource-variable/jetbrains-mono';
 import './styles/tokens.css';
 import './styles/main.css';
 
@@ -27,6 +28,7 @@ import { Sections } from './ui/Sections';
 import { ScreenCaption } from './ui/ScreenCaption';
 import { Sound } from './audio/Sound';
 import { Music } from './audio/Music';
+import { Charge } from './audio/Charge';
 import { content } from './content/content';
 
 type Phase = 'loading' | 'enter' | 'gate' | 'grip' | 'build' | 'reveal' | 'sections';
@@ -64,6 +66,10 @@ async function boot(): Promise<void> {
   const cursor = new Cursor(document.body);
   const sound = new Sound();
   const music = new Music();
+  const charge = new Charge(music);
+  input.hold.on('start', () => charge.begin());
+  input.hold.on('release', () => charge.release());
+  input.hold.on('complete', () => charge.complete());
   const eq = [0, 0, 0, 0];
   let hudRef: Hud | null = null;
   let palette = readPalette();
@@ -104,7 +110,10 @@ async function boot(): Promise<void> {
     renderer.sample(dt);
     input.update(dt);
     preloader.update(dt);
-    if (phase === 'gate') gate?.update(dt);
+    if (phase === 'gate') {
+      gate?.update(dt);
+      if (input.hold.active) charge.set(input.hold.progress);
+    }
     if (hand) {
       if (phase !== 'gate') hand.setGlow(fx.pulse * 1.4);
       hand.update(dt, input.pointer);
@@ -391,6 +400,7 @@ async function boot(): Promise<void> {
 
   await preloader.exit();
 
+  hud.showControls(reduced());
   if (reduced()) {
     phase = 'enter';
     await skipIntro(true);

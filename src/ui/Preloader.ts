@@ -26,13 +26,10 @@ export class Preloader {
     this.el.setAttribute('aria-label', 'Loading');
     this.el.setAttribute('aria-valuemin', '0');
     this.el.setAttribute('aria-valuemax', '100');
-    const mark = document.createElement('p');
-    mark.className = 'preloader__mark';
-    mark.textContent = 'dncnl.dev';
     const label = document.createElement('p');
     label.className = 'preloader__label mono';
     label.textContent = 'handoff / loading';
-    this.el.append(mark, this.odo.el, label);
+    this.el.append(this.odo.el, label);
     root.append(this.el);
     this.done = new Promise((r) => (this.resolveDone = r));
   }
@@ -76,11 +73,7 @@ export class Preloader {
       gsap
         .timeline({ onComplete: () => (this.el.remove(), resolve()) })
         .to(this.odo.el, { yPercent: -40, opacity: 0, duration: D.m })
-        .to(
-          this.el.querySelectorAll('.preloader__label, .preloader__mark'),
-          { opacity: 0, duration: D.s },
-          0,
-        )
+        .to(this.el.querySelectorAll('.preloader__label'), { opacity: 0, duration: D.s }, 0)
         .to(this.el, { opacity: 0, duration: D.m }, D.xs);
     });
   }

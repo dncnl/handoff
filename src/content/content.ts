@@ -45,7 +45,7 @@ export interface Content {
   whatIBuild: { intro: string; kinds: WorkKind[]; howIWork: string };
   skills: SkillGroup[];
   certifications: Certification[];
-  github: { username: string; url: string; contributions: number; publicRepos: number };
+  github: { username: string; url: string; publicRepos: number };
   contact: { line: string; links: ContactLink[] };
   sections: SectionMeta[];
 }
@@ -152,7 +152,6 @@ export const content: Content = {
   github: {
     username: 'dncnl',
     url: 'https://github.com/dncnl',
-    contributions: 335,
     publicRepos: 18,
   },
   contact: {

@@ -117,7 +117,7 @@ a {
 
 .odometer {
   display: inline-flex;
-  font-family: var(--f-mono);
+  font-family: var(--f-count);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -137,14 +137,9 @@ a {
 }
 
 .odometer--xl {
-  font-family: var(--f-hero);
   font-size: clamp(72px, 14vw, 176px);
-  font-weight: 700;
-  letter-spacing: var(--tracking-hero);
-}
-
-.odometer--hud {
-  font-size: var(--t-lg);
+  font-weight: 300;
+  letter-spacing: -0.04em;
 }
 
 /* ---------- Preloader ---------- */
@@ -158,18 +153,6 @@ a {
   justify-items: center;
   gap: var(--s-4);
   background: var(--c-bg-0);
-}
-
-.preloader__mark,
-.hero__mark {
-  font-family: var(--f-title);
-  font-weight: 700;
-  letter-spacing: var(--tracking-tight);
-  line-height: 1;
-}
-
-.preloader__mark {
-  font-size: var(--t-lg);
 }
 
 .preloader__label {
@@ -226,7 +209,7 @@ a {
 
 .gate__skip {
   position: fixed;
-  top: var(--gutter);
+  bottom: var(--gutter);
   right: var(--gutter);
   font-size: var(--t-xs);
   text-transform: uppercase;
@@ -341,12 +324,6 @@ a {
   max-width: min(46vw, 640px);
   display: grid;
   gap: var(--s-3);
-}
-
-.hero__mark {
-  font-size: var(--t-lg);
-  margin-bottom: var(--s-3);
-  opacity: 0;
 }
 
 .hero__kicker {
@@ -592,7 +569,7 @@ a {
 
 .stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: var(--s-5);
 }
 
@@ -746,22 +723,6 @@ a {
   background: var(--c-ink-faint);
 }
 
-.hud__counter {
-  right: var(--gutter);
-  bottom: var(--gutter);
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  text-decoration: none;
-}
-
-.hud__counter-label {
-  font-size: 10px;
-  line-height: 1.3;
-  text-transform: uppercase;
-  color: var(--c-ink-dim);
-}
-
 .hud__controls {
   top: var(--gutter);
   right: var(--gutter);
@@ -887,14 +848,6 @@ a {
 
   .hud__nav {
     bottom: 16px;
-  }
-
-  .hud__counter {
-    bottom: 16px;
-  }
-
-  .hud__counter-label {
-    display: none;
   }
 
   .hud__seg {
