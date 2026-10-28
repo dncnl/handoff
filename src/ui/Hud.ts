@@ -1,8 +1,9 @@
 import { gsap } from 'gsap';
 import { D } from '../core/ease';
 import type { Content } from '../content/content';
+import { socialIcon } from './socialIcons';
 
-/** Persistent chrome: section index and progress segments, plus theme and sound controls. */
+/** Persistent chrome: section index and progress, contact links, theme and sound controls. */
 export class Hud {
   private el: HTMLElement;
   private segs: HTMLButtonElement[] = [];
@@ -28,6 +29,14 @@ export class Hud {
         <span class="hud__index mono"><span class="hud__current">01</span> / ${total}</span>
         <ol class="hud__segments"></ol>
       </nav>
+      <ul class="hud__social" aria-label="Contact">${content.contact.links
+        .map(
+          (l) =>
+            `<li><a href="${l.href}" aria-label="${l.label}" title="${l.label}"${
+              l.href.startsWith('http') ? ' target="_blank" rel="noopener"' : ''
+            }>${socialIcon(l.label)}</a></li>`,
+        )
+        .join('')}</ul>
       <div class="hud__controls">
         <button class="hud__theme mono" type="button" aria-label="Switch colour theme" data-hold-ignore>
           <span class="hud__theme-dot" aria-hidden="true"></span>
@@ -105,12 +114,12 @@ export class Hud {
     );
   }
 
-  /** The section nav slides up from the bottom edge once the site is revealed. */
+  /** The section nav and contact links slide up from the bottom edge once the site is revealed. */
   enterTween(tl: gsap.core.Timeline, at: number, reduced = false): void {
     tl.fromTo(
-      this.el.querySelector('.hud__nav'),
+      this.el.querySelectorAll('.hud__nav, .hud__social'),
       { opacity: 0, y: reduced ? 0 : 24 },
-      { opacity: 1, y: 0, duration: D.m },
+      { opacity: 1, y: 0, duration: D.m, stagger: 0.1 },
       at,
     )
       .call(() => this.showControls(reduced), [], at)

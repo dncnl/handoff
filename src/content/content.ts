@@ -163,8 +163,11 @@ export const content: Content = {
         display: 'danielcanlapan0402@gmail.com',
       },
       { label: 'GitHub', href: 'https://github.com/dncnl', display: 'github.com/dncnl' },
-      // TODO(content): replace with the real profile URL.
-      { label: 'LinkedIn', href: 'https://www.linkedin.com/', display: 'LinkedIn' },
+      {
+        label: 'LinkedIn',
+        href: 'https://www.linkedin.com/in/daniel-martin-canlapan-1b2760380',
+        display: 'linkedin.com/in/daniel-martin-canlapan',
+      },
     ],
   },
   sections: [

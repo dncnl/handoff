@@ -756,6 +756,35 @@ a {
   background: var(--c-ink-faint);
 }
 
+.hud__social {
+  right: var(--gutter);
+  bottom: var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.hud__social a {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--c-ink-dim);
+  transition:
+    color var(--d-1) var(--ease),
+    transform var(--d-1) var(--ease);
+}
+
+.hud__social a:hover,
+.hud__social a:focus-visible {
+  color: var(--c-ink);
+  transform: translateY(-2px);
+}
+
+.social-icon {
+  display: block;
+}
+
 .hud__controls {
   top: var(--gutter);
   right: var(--gutter);
@@ -837,10 +866,11 @@ a {
 /* ---------- Stacked layout: hand above, content below ---------- */
 
 @media (max-width: 759px), (max-aspect-ratio: 4/5) {
+  /* Header starts under the theme/sound controls rather than beside them. */
   .hero {
+    top: calc(var(--gutter) + 36px);
     max-width: calc(100vw - 2 * var(--gutter));
     gap: var(--s-2);
-    padding-right: 96px;
   }
 
   .hero__name {
@@ -885,6 +915,11 @@ a {
 
   .hud__seg {
     width: 26px;
+  }
+
+  .hud__social {
+    bottom: 8px;
+    gap: 0;
   }
 
   .gate__hint {
