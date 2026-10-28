@@ -40,7 +40,6 @@ export interface SectionMeta {
 
 export interface Content {
   name: string;
-  kicker: string;
   tagline: string;
   whatIBuild: { intro: string; kinds: WorkKind[]; howIWork: string };
   skills: SkillGroup[];
@@ -52,7 +51,6 @@ export interface Content {
 
 export const content: Content = {
   name: 'Daniel Martin Canlapan',
-  kicker: 'b.s. computer science · fourth year',
   tagline: 'I build software, from problem to shipped screen.',
   whatIBuild: {
     intro:

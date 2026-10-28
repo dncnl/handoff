@@ -24,6 +24,10 @@
   --c-scene-mid: #fcfaf6;
   --c-scene-screen: #171613;
   --shadow-hard: 4px 4px 0 var(--c-ink);
+  /* Pills: transparent fill, a soft ink edge that firms up on hover. */
+  --c-edge: color-mix(in srgb, var(--c-ink) 16%, transparent);
+  --c-edge-strong: color-mix(in srgb, var(--c-ink) 42%, transparent);
+  --radius-pill: 999px;
 
   /* Type */
   --f-title: 'Libre Caslon Text', Georgia, 'Times New Roman', serif;

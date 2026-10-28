@@ -138,7 +138,7 @@ a {
 
 .odometer--xl {
   font-size: clamp(72px, 14vw, 176px);
-  font-weight: 300;
+  font-weight: 400;
   letter-spacing: -0.04em;
 }
 
@@ -175,8 +175,12 @@ a {
   bottom: max(9dvh, 72px);
   width: fit-content;
   margin: 0 auto;
-  padding: 15px 26px;
-  background: var(--c-bg-sunken);
+  padding: 15px 28px;
+  background: transparent;
+  border: 1px solid var(--c-edge);
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   font-size: var(--t-xs);
   text-transform: uppercase;
   letter-spacing: var(--tracking-wider);
@@ -188,13 +192,20 @@ a {
   touch-action: none;
   opacity: 0;
   transition:
-    box-shadow var(--d-1) var(--ease),
-    translate var(--d-1) var(--ease);
+    border-color var(--d-2) var(--ease),
+    translate var(--d-2) var(--ease);
 }
 
 .gate__hint:hover {
-  translate: -2px -2px;
-  box-shadow: var(--shadow-hard);
+  translate: 0 -2px;
+  border-color: var(--c-edge-strong);
+}
+
+/* Pills show focus on their own edge instead of a second ring around it. */
+.gate__hint:focus-visible,
+.btn:focus-visible {
+  outline: none;
+  border-color: var(--c-ink);
 }
 
 .gate__hint-fill {
@@ -326,14 +337,6 @@ a {
   gap: var(--s-3);
 }
 
-.hero__kicker {
-  font-size: var(--t-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-  color: var(--c-ink-dim);
-  opacity: 0;
-}
-
 .hero__name {
   font-family: var(--f-hero);
   font-size: var(--t-xl);
@@ -462,15 +465,19 @@ a {
   gap: 7px;
   font-family: var(--f-mono);
   font-size: 0.8125rem;
-  padding: 7px 11px;
-  background: var(--c-bg-sunken);
+  padding: 7px 13px;
+  background: transparent;
+  border: 1px solid var(--c-edge);
+  border-radius: var(--radius-pill);
   transition:
     color var(--d-1) var(--ease),
+    border-color var(--d-1) var(--ease),
     transform var(--d-1) var(--ease);
 }
 
 .chips li:hover {
   color: var(--c-accent);
+  border-color: var(--c-edge-strong);
   transform: translateY(-2px);
 }
 
@@ -521,32 +528,30 @@ a {
 
 .btn {
   margin-top: var(--s-3);
-  padding: 6px 12px;
+  padding: 7px 14px;
   font-size: var(--t-xs);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
   text-decoration: none;
   color: var(--c-ink);
-  background: var(--c-bg-sunken);
+  background: transparent;
+  border: 1px solid var(--c-edge);
+  border-radius: var(--radius-pill);
   transition:
-    background var(--d-1) var(--ease),
+    border-color var(--d-1) var(--ease),
     color var(--d-1) var(--ease),
-    transform var(--d-1) var(--ease),
-    box-shadow var(--d-1) var(--ease);
+    transform var(--d-1) var(--ease);
 }
 
 .btn:hover,
 .btn:focus-visible {
-  color: var(--c-bg-0);
-  background: var(--c-ink);
-  transform: translate(-2px, -2px);
-  box-shadow: 2px 2px 0 var(--c-accent);
+  border-color: var(--c-edge-strong);
+  transform: translateY(-2px);
 }
 
 .btn:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+  transform: translateY(0);
 }
 
 .certs__issuer,
@@ -879,11 +884,6 @@ a {
 
   .hero__tagline {
     font-size: var(--t-xs);
-  }
-
-  /* The wordmark already says who this is; keep the stacked header short. */
-  .hero__kicker {
-    display: none;
   }
 
   .sections {
