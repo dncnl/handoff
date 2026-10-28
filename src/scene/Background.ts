@@ -1,4 +1,5 @@
 import { Color, Mesh, PlaneGeometry, ShaderMaterial, Vector2 } from 'three';
+import { tweenColor, type ScenePalette } from './palette';
 
 const vert = /* glsl */ `
 varying vec2 vUv;
@@ -55,7 +56,7 @@ export class Background {
   readonly mesh: Mesh;
   private mat: ShaderMaterial;
 
-  constructor() {
+  constructor(palette: ScenePalette) {
     this.mat = new ShaderMaterial({
       vertexShader: vert,
       fragmentShader: frag,
@@ -67,14 +68,24 @@ export class Background {
         uGrain: { value: 0.32 },
         uRes: { value: new Vector2(1, 1) },
         uFocus: { value: new Vector2(0.5, 0.52) },
-        uDeep: { value: new Color('#08090c') },
-        uMid: { value: new Color('#1c1f27') },
-        uGlow: { value: new Color('#c8f560') },
+        uDeep: { value: new Color() },
+        uMid: { value: new Color() },
+        uGlow: { value: new Color() },
       },
     });
     this.mesh = new Mesh(new PlaneGeometry(2, 2), this.mat);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = -1;
+    this.setPalette(palette, 0);
+  }
+
+  setPalette(p: ScenePalette, duration: number): void {
+    const u = this.mat.uniforms;
+    tweenColor(u.uDeep!.value as Color, p.deep, duration);
+    tweenColor(u.uMid!.value as Color, p.mid, duration);
+    tweenColor(u.uGlow!.value as Color, p.glow, duration);
+    // Multiplicative grain is far louder on paper than on night.
+    u.uGrain!.value = p.light ? 0.06 : 0.32;
   }
 
   get uniforms() {

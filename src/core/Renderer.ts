@@ -81,7 +81,7 @@ export class Renderer {
       new Vector2(this.size.x / 2, this.size.y / 2),
       0.55,
       0.6,
-      0.62,
+      this.bloomThreshold,
     );
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
@@ -90,9 +90,20 @@ export class Renderer {
     this.resize();
   }
 
+  /** Scales every setBloomStrength call; paper needs far less glow than night. */
+  bloomScale = 1;
+
   setBloomStrength(s: number): void {
-    if (this.bloom) this.bloom.strength = s;
+    if (this.bloom) this.bloom.strength = s * this.bloomScale;
   }
+
+  /** On a light background almost everything clears the default threshold, so lift it. */
+  setBloomThreshold(t: number): void {
+    if (this.bloom) this.bloom.threshold = t;
+    this.bloomThreshold = t;
+  }
+
+  private bloomThreshold = 0.62;
 
   onTier(cb: (t: QualityTier) => void): void {
     this.tierListeners.add(cb);

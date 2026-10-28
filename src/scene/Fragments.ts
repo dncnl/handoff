@@ -1,10 +1,10 @@
 import {
-  AdditiveBlending,
   Color,
   DoubleSide,
   Group,
   InstancedBufferAttribute,
   InstancedMesh,
+  NormalBlending,
   PlaneGeometry,
   ShaderMaterial,
   Vector2,
@@ -14,6 +14,7 @@ import {
 } from 'three';
 import { gsap } from 'gsap';
 import { D, EASE_GLSL } from '../core/ease';
+import { tweenColor, type ScenePalette } from './palette';
 
 const COLS = 15;
 const ROWS = 8;
@@ -179,7 +180,8 @@ void main() {
   // Vertical sheen so the glass doesn't read as a flat card.
   col += uColor * 0.06 * smoothstep(0.2, 1.0, vScreenUv.y);
 
-  float alpha = tile * screen * vAlpha * uVisible * mix(0.55, 1.0, vSettle);
+  // Loose tiles stay faint so the scatter reads as dust, not confetti.
+  float alpha = tile * screen * vAlpha * uVisible * mix(0.12, 1.0, vSettle * vSettle);
   gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -208,7 +210,7 @@ export class Fragments {
   private flipTween: gsap.core.Tween | null = null;
   private placed = false;
 
-  constructor() {
+  constructor(palette: ScenePalette) {
     const geo = new PlaneGeometry(1, 1);
     const cell = new Float32Array(FRAGMENT_COUNT * 2);
     const far = new Float32Array(FRAGMENT_COUNT * 3);
@@ -253,20 +255,28 @@ export class Fragments {
       fragmentShader: frag,
       transparent: true,
       depthWrite: false,
-      blending: AdditiveBlending,
+      // Normal, not additive: an ink slab has to stay visible on cream paper.
+      blending: NormalBlending,
       side: DoubleSide,
       uniforms: {
         ...this.u,
         uSize: { value: SIZE },
         uCell: { value: new Vector2(SIZE.x / COLS, SIZE.y / ROWS) },
-        uColor: { value: new Color('#c8f560') },
-        uTint: { value: new Color('#16200c') },
+        uColor: { value: new Color() },
+        uTint: { value: new Color() },
       },
     });
     this.mesh = new InstancedMesh(geo, mat, FRAGMENT_COUNT);
     // Instances move in the shader, so CPU bounds are meaningless.
     this.mesh.frustumCulled = false;
     this.group.add(this.mesh);
+    this.setPalette(palette, 0);
+  }
+
+  setPalette(p: ScenePalette, duration: number): void {
+    const m = this.mesh.material as ShaderMaterial;
+    tweenColor(m.uniforms.uColor!.value as Color, p.glow, duration);
+    tweenColor(m.uniforms.uTint!.value as Color, p.screen, duration);
   }
 
   /** Swaps the abstract glyph with a flip wave; mode -1 is the idle shimmer. */

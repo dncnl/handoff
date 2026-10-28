@@ -10,7 +10,6 @@ import { Odometer } from './Odometer';
 export class Preloader {
   readonly el: HTMLElement;
   private odo = new Odometer(3, 'odometer--xl');
-  private bar: HTMLElement;
   private tasks = new Map<string, { weight: number; p: number }>();
   private shown = 0;
   private elapsed = 0;
@@ -30,9 +29,7 @@ export class Preloader {
     const label = document.createElement('p');
     label.className = 'preloader__label mono';
     label.textContent = 'handoff / loading';
-    this.bar = document.createElement('span');
-    this.bar.className = 'preloader__bar';
-    this.el.append(this.odo.el, label, this.bar);
+    this.el.append(this.odo.el, label);
     root.append(this.el);
     this.done = new Promise((r) => (this.resolveDone = r));
   }
@@ -64,7 +61,6 @@ export class Preloader {
     const pct = Math.round(this.shown * 100);
     // Fractional value so the units wheel rolls rather than ticks.
     this.odo.set(this.shown * 100);
-    this.bar.style.transform = `scaleX(${this.shown})`;
     this.el.setAttribute('aria-valuenow', String(pct));
     if (this.shown >= 1) {
       this.resolveDone();
@@ -77,11 +73,7 @@ export class Preloader {
       gsap
         .timeline({ onComplete: () => (this.el.remove(), resolve()) })
         .to(this.odo.el, { yPercent: -40, opacity: 0, duration: D.m })
-        .to(
-          this.el.querySelectorAll('.preloader__label, .preloader__bar'),
-          { opacity: 0, duration: D.s },
-          0,
-        )
+        .to(this.el.querySelectorAll('.preloader__label'), { opacity: 0, duration: D.s }, 0)
         .to(this.el, { opacity: 0, duration: D.m }, D.xs);
     });
   }

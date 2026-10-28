@@ -1,23 +1,51 @@
+/*
+ * dncnl.dev brand tokens, mirrored from the Portfolio (tokens/colors.css et al.).
+ * Light (cream paper, ink) is the default; dark (night, bone) via [data-theme='dark'].
+ * The 3D scene reads --c-bg-0, --c-bg-1, --c-accent and --c-glow at runtime (scene/palette.ts).
+ */
 :root {
-  /* Color — warm ink, clay, one acid accent that also drives the 3D glow. */
-  --c-bg-0: #0a0b0e;
-  --c-bg-1: #15171d;
-  --c-ink: #ece8df;
-  --c-ink-dim: #9a988f;
-  --c-ink-faint: #5c5b57;
-  --c-line: rgba(236, 232, 223, 0.14);
-  --c-accent: #c8f560;
-  --c-accent-ink: #0d1203;
+  color-scheme: light;
+
+  /* Color — light */
+  --c-bg-0: #f6f3e8; /* cream */
+  --c-bg-1: #fcfaf6; /* paper */
+  --c-bg-sunken: #eceada; /* ink-06 */
+  --c-ink: #010101;
+  --c-ink-dim: #67655d; /* ink-60 */
+  --c-ink-faint: #716f66; /* ink-40 */
+  --c-line: #dedbcf; /* ink-12, used only by functional tracks (progress, ring) */
+  --c-accent: #886520; /* ochre */
+  --c-accent-ink: #fcfaf6;
+  --c-glow: #c79a4a; /* hand rim + bloom tint, warmer than text ochre */
+  --c-screen-ink: #fcfaf6; /* caption text sits on the 3D screen */
+  --c-screen-dim: rgba(252, 250, 246, 0.72);
+  /* WebGL: background pool, and the floating screen (an ink slab on paper). */
+  --c-scene-deep: #e4dfcd;
+  --c-scene-mid: #fcfaf6;
+  --c-scene-screen: #171613;
+  --shadow-hard: 4px 4px 0 var(--c-ink);
+  /* Pills: transparent fill, a soft ink edge that firms up on hover. */
+  --c-edge: color-mix(in srgb, var(--c-ink) 16%, transparent);
+  --c-edge-strong: color-mix(in srgb, var(--c-ink) 42%, transparent);
+  --radius-pill: 999px;
 
   /* Type */
-  --f-sans: 'Inter Tight Variable', 'Inter Tight', system-ui, sans-serif;
-  --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --f-title: 'Libre Caslon Text', Georgia, 'Times New Roman', serif;
+  --f-hero: 'League Spartan Variable', 'League Spartan', system-ui, sans-serif;
+  --f-mono: 'Lilex Variable', 'Lilex', 'IBM Plex Mono', ui-monospace, monospace;
+  --f-sans: var(--f-mono);
+  /* The preloader countdown keeps the original face. */
+  --f-count: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, Consolas, monospace;
   --t-xs: 0.6875rem;
-  --t-sm: 0.8125rem;
+  --t-sm: 0.875rem;
   --t-md: 1rem;
-  --t-lg: 1.25rem;
-  --t-xl: clamp(1.75rem, 1.1rem + 2.6vw, 3.25rem);
-  --tracking-mono: 0.04em;
+  --t-lg: 1.3125rem;
+  --t-xl: clamp(2rem, 1.1rem + 3vw, 3.5rem);
+  --tracking-mono: 0;
+  --tracking-wide: 0.08em;
+  --tracking-wider: 0.16em;
+  --tracking-tight: -0.03em;
+  --tracking-hero: -0.055em;
 
   /* Spacing */
   --s-1: 4px;
@@ -36,6 +64,7 @@
   --d-2: 0.4s;
   --d-3: 0.8s;
   --d-4: 1.2s;
+  --d-theme: 0.42s;
 
   --z-canvas: 0;
   --z-overlay: 10;
@@ -44,4 +73,23 @@
   --z-veil: 40;
   --z-preloader: 50;
   --z-cursor: 60;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --c-bg-0: #0e0d0b; /* night */
+  --c-bg-1: #171613; /* night-2 */
+  --c-bg-sunken: #201f1b; /* night-3 */
+  --c-ink: #eae6d8; /* bone */
+  --c-ink-dim: #9c988c; /* bone-2 */
+  --c-ink-faint: #858277; /* bone-3 */
+  --c-line: #292824;
+  --c-accent: #b5872b;
+  --c-accent-ink: #0e0d0b;
+  --c-glow: #e0b366;
+  --c-screen-ink: #f3ecd8;
+  --c-screen-dim: rgba(234, 230, 216, 0.72);
+  --c-scene-deep: #0a0908;
+  --c-scene-mid: #24211c;
+  --c-scene-screen: #1c1a16;
 }

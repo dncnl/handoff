@@ -1,25 +1,21 @@
 # hand.glb
 
-Drop a `hand.glb` here and it replaces the procedural placeholder automatically.
-No code changes are needed as long as the file meets this contract.
+The hand is the WebXR Input Profiles **generic-hand** (`right.glb`) from
+[`@webxr-input-profiles/assets@1.0.19`](https://github.com/immersive-web/webxr-input-profiles),
+MIT licensed. See `LICENSE-generic-hand.md`. If this file is missing or fails to load,
+the procedural hand in `src/scene/handGeometry.ts` is used instead.
 
-## Required
+## Replacing it
 
-- **One skinned or rigid mesh** of a right hand. Any material is fine: it is replaced
-  at runtime with the shared matcap + fresnel-rim material.
-- **Animation clips named exactly** (one per pose, case-sensitive):
-  `idle`, `offer`, `grip`, `palmUp`, `hold`, `tap`, `pinch`, `point`, `thumbsUp`.
-  Each clip can be a single-frame pose or a short loop; poses are blended with
-  `AnimationMixer` crossfades.
-- `offer` and `grip` must be authored from the same rest so they blend cleanly:
-  `setGrip(t)` runs both at once with weights `1 - t` and `t`.
+Any rigged **right** hand works with no code changes if it has:
 
-## Recommended
+- **One skinned mesh.** Its material is replaced at runtime by the shared skin material.
+- **WebXR hand joint names:** `wrist`, `thumb-metacarpal`, `thumb-phalanx-proximal`,
+  `thumb-phalanx-distal`, `thumb-tip`, and for each of `index`, `middle`, `ring`, `pinky`:
+  `<finger>-finger-phalanx-proximal`, `-phalanx-intermediate`, `-phalanx-distal`, `-tip`.
+- **A relaxed open rest pose** with the fingers roughly straight.
 
-- An empty node named **`palmAnchor`** about one palm-length above the palm,
-  along the palm normal. The floating screen follows it. Without it, a default
-  offset from the model root is used.
-- Rest pose: wrist at the origin, fingers along +Y, palm facing +Z, about
-  2 units from wrist to middle fingertip (matches the placeholder's scale).
-- Draco compression is supported (decoder is served from `/draco/`).
-- Keep it under ~1.5 MB; the preloader tracks its real download progress.
+There are no animation clips. `src/scene/RiggedHand.ts` measures the rig on load,
+turns it into wrist space (fingers +Y, palm +Z, thumb +X, wrist to middle fingertip
+= 2 units), and drives the joints from the pose table in `src/scene/Hand.ts`.
+Orientation, scale and units of the source file don't matter.

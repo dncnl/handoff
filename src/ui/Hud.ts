@@ -1,22 +1,25 @@
+import { gsap } from 'gsap';
 import { D } from '../core/ease';
 import type { Content } from '../content/content';
-import { Odometer } from './Odometer';
+import { socialIcon } from './socialIcons';
 
-/** Persistent chrome: section index, progress segments, contributions, sound. */
+/** Persistent chrome: section index and progress, contact links, theme and sound controls. */
 export class Hud {
   private el: HTMLElement;
-  private odo = new Odometer(3, 'odometer--hud');
   private segs: HTMLButtonElement[] = [];
   private indexEl: HTMLElement;
   private soundBtn: HTMLButtonElement;
-  private counter = { v: 0 };
+  private controlsShown = false;
   private selectCb: ((i: number) => void) | null = null;
   private soundCb: ((on: boolean) => void) | null = null;
-  private soundOn = false;
+  private themeLabel: HTMLElement;
+  private bars: HTMLElement[];
+  private themeCb: (() => void) | null = null;
 
   constructor(
     root: HTMLElement,
-    private content: Content,
+    content: Content,
+    private soundOn = false,
   ) {
     const total = String(content.sections.length).padStart(2, '0');
     this.el = document.createElement('div');
@@ -26,14 +29,24 @@ export class Hud {
         <span class="hud__index mono"><span class="hud__current">01</span> / ${total}</span>
         <ol class="hud__segments"></ol>
       </nav>
-      <a class="hud__counter mono" href="${content.github.url}" target="_blank" rel="noopener">
-        <span class="hud__counter-num"></span>
-        <span class="hud__counter-label">contributions<br />last 12 months</span>
-      </a>
-      <button class="hud__sound mono" type="button" aria-pressed="false">
-        <span class="hud__sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-        <span class="hud__sound-label">Sound off</span>
-      </button>`;
+      <ul class="hud__social" aria-label="Contact">${content.contact.links
+        .map(
+          (l) =>
+            `<li><a href="${l.href}" aria-label="${l.label}" title="${l.label}"${
+              l.href.startsWith('http') ? ' target="_blank" rel="noopener"' : ''
+            }>${socialIcon(l.label)}</a></li>`,
+        )
+        .join('')}</ul>
+      <div class="hud__controls">
+        <button class="hud__theme mono" type="button" aria-label="Switch colour theme" data-hold-ignore>
+          <span class="hud__theme-dot" aria-hidden="true"></span>
+          <span class="hud__theme-label"></span>
+        </button>
+        <button class="hud__sound mono" type="button" aria-pressed="${soundOn}" data-hold-ignore>
+          <span class="hud__sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="hud__sound-label">${soundOn ? 'Sound on' : 'Sound off'}</span>
+        </button>
+      </div>`;
     root.append(this.el);
 
     this.indexEl = this.el.querySelector('.hud__current') as HTMLElement;
@@ -50,10 +63,6 @@ export class Hud {
       list.append(li);
       this.segs.push(b);
     });
-    const num = this.el.querySelector('.hud__counter-num') as HTMLElement;
-    num.append(this.odo.el);
-    num.setAttribute('aria-label', String(content.github.contributions));
-
     this.soundBtn = this.el.querySelector('.hud__sound') as HTMLButtonElement;
     this.soundBtn.addEventListener('click', () => {
       this.soundOn = !this.soundOn;
@@ -63,6 +72,24 @@ export class Hud {
         : 'Sound off';
       this.soundCb?.(this.soundOn);
     });
+
+    this.bars = [...this.el.querySelectorAll<HTMLElement>('.hud__sound-bars i')];
+    this.themeLabel = this.el.querySelector('.hud__theme-label') as HTMLElement;
+    this.el.querySelector('.hud__theme')?.addEventListener('click', () => this.themeCb?.());
+  }
+
+  /** Equaliser bars follow the music: 0–1 per bar. */
+  setLevels(levels: number[]): void {
+    this.bars.forEach((b, i) => (b.style.height = `${2 + (levels[i] ?? 0) * 8}px`));
+  }
+
+  onTheme(cb: () => void): void {
+    this.themeCb = cb;
+  }
+
+  /** Label names the theme you'd switch to, like the Portfolio toggle. */
+  setTheme(t: 'light' | 'dark'): void {
+    this.themeLabel.textContent = t === 'dark' ? 'Light' : 'Dark';
   }
 
   onSelect(cb: (i: number) => void): void {
@@ -73,31 +100,29 @@ export class Hud {
     this.soundCb = cb;
   }
 
-  /** Each block slides in from its nearest edge; the counter rolls up after it lands. */
-  enterTween(tl: gsap.core.Timeline, at: number, reduced = false): void {
-    const dy = reduced ? 0 : 24;
-    tl.fromTo(
-      this.el.querySelector('.hud__nav'),
-      { opacity: 0, y: dy },
+  /**
+   * Theme and sound come in with the gate, so sound can be on before the handshake.
+   * Safe to call more than once.
+   */
+  showControls(reduced = false): void {
+    if (this.controlsShown) return;
+    this.controlsShown = true;
+    gsap.fromTo(
+      this.el.querySelector('.hud__controls'),
+      { opacity: 0, y: reduced ? 0 : -16 },
       { opacity: 1, y: 0, duration: D.m },
+    );
+  }
+
+  /** The section nav and contact links slide up from the bottom edge once the site is revealed. */
+  enterTween(tl: gsap.core.Timeline, at: number, reduced = false): void {
+    tl.fromTo(
+      this.el.querySelectorAll('.hud__nav, .hud__social'),
+      { opacity: 0, y: reduced ? 0 : 24 },
+      { opacity: 1, y: 0, duration: D.m, stagger: 0.1 },
       at,
     )
-      .fromTo(
-        this.el.querySelectorAll('.hud__counter, .hud__sound'),
-        { opacity: 0, y: (i: number) => (i === 0 ? dy : -dy) },
-        { opacity: 1, y: 0, duration: D.m, stagger: 0.1 },
-        at + 0.1,
-      )
-      .fromTo(
-        this.counter,
-        { v: 0 },
-        {
-          v: this.content.github.contributions,
-          duration: D.l,
-          onUpdate: () => this.odo.set(this.counter.v),
-        },
-        at + 0.4,
-      )
+      .call(() => this.showControls(reduced), [], at)
       .call(() => this.el.classList.add('is-ready'), [], at);
   }
 

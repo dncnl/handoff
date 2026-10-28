@@ -1,4 +1,7 @@
-import '@fontsource-variable/inter-tight';
+import '@fontsource/libre-caslon-text/latin-400.css';
+import '@fontsource/libre-caslon-text/latin-700.css';
+import '@fontsource-variable/league-spartan';
+import '@fontsource-variable/lilex';
 import '@fontsource-variable/jetbrains-mono';
 import './styles/tokens.css';
 import './styles/main.css';
@@ -7,9 +10,13 @@ import { Vector3 } from 'three';
 import { gsap } from 'gsap';
 import { D } from './core/ease';
 import { Renderer } from './core/Renderer';
+import { Theme } from './core/Theme';
 import { Timeline } from './core/Timeline';
 import { Input } from './core/Input';
 import { Background } from './scene/Background';
+import { handRimColor } from './scene/handMaterial';
+import { Lights } from './scene/lights';
+import { readPalette, tweenColor } from './scene/palette';
 import { createHand, type Hand, type PoseName } from './scene/Hand';
 import { Fragments } from './scene/Fragments';
 import { Preloader } from './ui/Preloader';
@@ -20,6 +27,8 @@ import { Cursor } from './ui/Cursor';
 import { Sections } from './ui/Sections';
 import { ScreenCaption } from './ui/ScreenCaption';
 import { Sound } from './audio/Sound';
+import { Music } from './audio/Music';
+import { Charge } from './audio/Charge';
 import { content } from './content/content';
 
 type Phase = 'loading' | 'enter' | 'gate' | 'grip' | 'build' | 'reveal' | 'sections';
@@ -40,6 +49,25 @@ function layout(phase: 'gate' | 'stage') {
   return stacked ? { x: 0, y: 0.2, scale: 0.62 } : { x: 0.2, y: 0.02, scale: 0.95 };
 }
 
+const SOUND_KEY = 'handoff-sound';
+
+/** On unless the visitor switched it off before. */
+function readSoundPref(): boolean {
+  try {
+    return localStorage.getItem(SOUND_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+function saveSoundPref(on: boolean): void {
+  try {
+    localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
+  } catch {
+    /* the choice just won't persist */
+  }
+}
+
 async function boot(): Promise<void> {
   const canvas = document.getElementById('gl') as HTMLCanvasElement;
   const overlay = document.getElementById('overlay') as HTMLElement;
@@ -51,11 +79,46 @@ async function boot(): Promise<void> {
   const tPost = preloader.task('post');
   const tCompile = preloader.task('compile');
 
+  const theme = new Theme();
   const renderer = new Renderer(canvas);
   const input = new Input();
   const cursor = new Cursor(document.body);
   const sound = new Sound();
-  const bg = new Background();
+  const music = new Music();
+  const charge = new Charge(music);
+  input.hold.on('start', () => charge.begin());
+  input.hold.on('release', () => charge.release());
+  input.hold.on('complete', () => charge.complete());
+  const eq = [0, 0, 0, 0];
+
+  // Sound defaults to on. Browsers only allow audio after a gesture, so it starts on the
+  // first press anywhere: capture phase, so it runs before that press can begin the handshake.
+  let soundOn = readSoundPref();
+  const enableAudio = (on: boolean) => {
+    if (on) music.start();
+    else music.stop();
+    return sound.setEnabled(on);
+  };
+  const unlock = () => {
+    window.removeEventListener('pointerdown', unlock, true);
+    window.removeEventListener('keydown', unlock, true);
+    if (soundOn) void enableAudio(true);
+  };
+  window.addEventListener('pointerdown', unlock, true);
+  window.addEventListener('keydown', unlock, true);
+  let hudRef: Hud | null = null;
+  let palette = readPalette();
+  const applyBloom = () => {
+    renderer.bloomScale = palette.light ? 0.35 : 1;
+    renderer.setBloomThreshold(palette.light ? 0.97 : 0.8);
+  };
+  applyBloom();
+  tweenColor(handRimColor.value, palette.glow, 0);
+  const bg = new Background(palette);
+  const lights = new Lights(renderer.gl, palette);
+  renderer.scene.add(lights.group);
+  renderer.scene.environment = lights.environment;
+  renderer.scene.environmentIntensity = 0.3;
   renderer.scene.add(bg.mesh);
   renderer.onResize((w, h) => bg.resize(w, h));
 
@@ -82,7 +145,10 @@ async function boot(): Promise<void> {
     renderer.sample(dt);
     input.update(dt);
     preloader.update(dt);
-    if (phase === 'gate') gate?.update(dt);
+    if (phase === 'gate') {
+      gate?.update(dt);
+      if (input.hold.active) charge.set(input.hold.progress);
+    }
     if (hand) {
       if (phase !== 'gate') hand.setGlow(fx.pulse * 1.4);
       hand.update(dt, input.pointer);
@@ -117,6 +183,7 @@ async function boot(): Promise<void> {
 
     cursor.update(dt);
     fps?.update(dt);
+    if (music.playing) hudRef?.setLevels(music.levels(eq));
   });
 
   // --- Loading ---------------------------------------------------------------
@@ -127,7 +194,7 @@ async function boot(): Promise<void> {
   );
   hand = await createHand(tHand);
   hand.motion = !reduced();
-  fragments = new Fragments();
+  fragments = new Fragments(palette);
   renderer.scene.add(hand.object, fragments.group);
 
   const gl = layout('gate');
@@ -146,7 +213,8 @@ async function boot(): Promise<void> {
   const theFragments = fragments;
   const hero = new Hero(overlay, content);
   const sections = new Sections(overlay, content, reduced);
-  const hud = new Hud(overlay, content);
+  const hud = new Hud(overlay, content, soundOn);
+  hudRef = hud;
   caption = new ScreenCaption(overlay, content.whatIBuild.kinds);
   gate = new Gate(overlay, input, renderer, theHand, cursor);
   const theGate = gate;
@@ -172,6 +240,7 @@ async function boot(): Promise<void> {
     tl.call(() => {
       if (skipping) return;
       sound.play('grip');
+      music.duck();
       navigator.vibrate?.(24);
     })
       .fromTo(fx, { shake: 1 }, { shake: 0, duration: D.m, immediateRender: false }, 0)
@@ -186,7 +255,10 @@ async function boot(): Promise<void> {
     const st = () => layout('stage');
     tl.call(() => {
       pose('palmUp', D.l);
-      if (!skipping) sound.play('build', 0.5);
+      if (!skipping) {
+        sound.play('build', 0.5);
+        music.duck(0.35, 1);
+      }
     })
       .to(renderer.framing, { x: () => st().x, y: () => st().y, duration: D.l }, 0)
       .to(
@@ -296,7 +368,25 @@ async function boot(): Promise<void> {
     }
   });
   hud.onSelect((i) => sections.goTo(i));
-  hud.onSound((on) => void sound.setEnabled(on).then(() => on && sound.play('tick')));
+  hud.setTheme(theme.current);
+  hud.onTheme(() => theme.toggle());
+  theme.onChange((t) => {
+    hud.setTheme(t);
+    palette = readPalette();
+    const d = reduced() ? 0 : D.s;
+    bg.setPalette(palette, d);
+    theFragments.setPalette(palette, d);
+    lights.setPalette(palette, d);
+    tweenColor(handRimColor.value, palette.glow, d);
+    applyBloom();
+  });
+  hud.onSound((on) => {
+    soundOn = on;
+    saveSoundPref(on);
+    // Runs inside the click, so the browser allows the AudioContext.
+    void enableAudio(on).then(() => on && sound.play('tick'));
+    if (!on) hud.setLevels([0, 0, 0, 0]);
+  });
 
   window.addEventListener('resize', () => {
     if (phase !== 'sections') return;
@@ -341,8 +431,13 @@ async function boot(): Promise<void> {
     await finish();
   });
 
+  // Do the audio prep while idle, so the first press only has to start playback.
+  const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 200));
+  idle(() => music.prepare());
+  idle(() => sound.prepare());
   await preloader.exit();
 
+  hud.showControls(reduced());
   if (reduced()) {
     phase = 'enter';
     await skipIntro(true);

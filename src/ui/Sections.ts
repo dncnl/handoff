@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import { D } from '../core/ease';
 import type { Content } from '../content/content';
+import { fetchActivity, timeAgo, type ActivityItem } from '../content/github';
 
 const esc = (s: string) =>
   s.replace(
@@ -19,25 +20,33 @@ function panelBody(c: Content, id: Content['sections'][number]['id']): string {
         .map(
           (g) =>
             `<div class="skills__group"><dt class="mono">${esc(g.name)}</dt><dd><ul class="chips">${g.items
-              .map((i) => `<li>${esc(i)}</li>`)
+              .map(
+                (i) =>
+                  `<li${i.slug ? ` data-slug="${esc(i.slug)}"` : ''}><span>${esc(i.name)}</span></li>`,
+              )
               .join('')}</ul></dd></div>`,
         )
         .join('')}</dl>`;
     case 'certs':
       return `<ul class="certs">${c.certifications
         .map(
-          (x) =>
-            `<li><span class="mono certs__issuer">${esc(x.issuer)}</span><span class="certs__name">${esc(x.name)}</span>${
+          (x, i) =>
+            `<li><img class="certs__badge" src="${esc(x.badge)}" alt="" width="96" height="96" decoding="async" style="animation-delay:${-i * 280}ms" /><div class="certs__text"><span class="mono certs__issuer">${esc(x.issuer)}</span><span class="certs__name">${esc(x.name)}</span>${
               x.issued ? `<span class="mono certs__date">Issued ${esc(x.issued)}</span>` : ''
-            }</li>`,
+            }<a class="btn mono" href="${esc(x.href)}" target="_blank" rel="noopener">View credential ↗</a></div></li>`,
         )
         .join('')}</ul>`;
     case 'github':
       return `
         <dl class="stats">
-          <div><dt class="mono">Contributions, last year</dt><dd>${c.github.contributions}</dd></div>
           <div><dt class="mono">Public repositories</dt><dd>${c.github.publicRepos}</dd></div>
         </dl>
+        <div class="activity">
+          <p class="mono activity__label">Recent activity</p>
+          <ol class="activity__list" aria-live="polite" aria-busy="true">
+            <li class="mono activity__status">Loading…</li>
+          </ol>
+        </div>
         <a class="link mono" href="${esc(c.github.url)}" target="_blank" rel="noopener">github.com/${esc(c.github.username)} ↗</a>`;
     case 'contact':
       return `
@@ -92,12 +101,45 @@ export class Sections {
       this.panels.push(p);
     });
     root.append(this.el);
+    void this.loadActivity(content.github.username);
+    // Stack logos are code-split: the skills panel is never the first one shown.
+    void import('./techIcon').then(({ techIcon }) =>
+      this.el
+        .querySelectorAll<HTMLElement>('[data-slug]')
+        .forEach((li) => li.insertAdjacentHTML('afterbegin', techIcon(li.dataset.slug))),
+    );
 
     window.addEventListener('wheel', this.onWheel, { passive: true });
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('touchstart', this.onTouchStart, { passive: true });
     window.addEventListener('touchend', this.onTouchEnd, { passive: true });
     window.addEventListener('pointerdown', this.onDragStart);
+  }
+
+  /** Fills the GitHub panel's feed; if GitHub can't be reached the block just goes away. */
+  private async loadActivity(user: string): Promise<void> {
+    const block = this.el.querySelector<HTMLElement>('.activity');
+    const list = block?.querySelector<HTMLElement>('.activity__list');
+    if (!block || !list) return;
+    let items: ActivityItem[] = [];
+    try {
+      items = await fetchActivity(user);
+    } catch {
+      /* rate-limited or offline */
+    }
+    if (!items.length) {
+      block.remove();
+      return;
+    }
+    list.innerHTML = items
+      .map(
+        (a) =>
+          `<li><span class="activity__line">${esc(a.verb)} <a class="link" href="${esc(a.repoUrl)}" target="_blank" rel="noopener">${esc(a.repo)}</a>${
+            a.detail ? `<span class="activity__detail"> · ${esc(a.detail)}</span>` : ''
+          }</span><time class="mono activity__time" datetime="${esc(a.at)}">${esc(timeAgo(a.at))}</time></li>`,
+      )
+      .join('');
+    list.setAttribute('aria-busy', 'false');
   }
 
   onChange(cb: (i: number, prev: number) => void): void {
