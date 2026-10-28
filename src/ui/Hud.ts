@@ -11,12 +11,15 @@ export class Hud {
   private controlsShown = false;
   private selectCb: ((i: number) => void) | null = null;
   private soundCb: ((on: boolean) => void) | null = null;
-  private soundOn = false;
   private themeLabel: HTMLElement;
   private bars: HTMLElement[];
   private themeCb: (() => void) | null = null;
 
-  constructor(root: HTMLElement, content: Content) {
+  constructor(
+    root: HTMLElement,
+    content: Content,
+    private soundOn = false,
+  ) {
     const total = String(content.sections.length).padStart(2, '0');
     this.el = document.createElement('div');
     this.el.className = 'hud';
@@ -30,9 +33,9 @@ export class Hud {
           <span class="hud__theme-dot" aria-hidden="true"></span>
           <span class="hud__theme-label"></span>
         </button>
-        <button class="hud__sound mono" type="button" aria-pressed="false" data-hold-ignore>
+        <button class="hud__sound mono" type="button" aria-pressed="${soundOn}" data-hold-ignore>
           <span class="hud__sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-          <span class="hud__sound-label">Sound off</span>
+          <span class="hud__sound-label">${soundOn ? 'Sound on' : 'Sound off'}</span>
         </button>
       </div>`;
     root.append(this.el);

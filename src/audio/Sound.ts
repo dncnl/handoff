@@ -3,13 +3,15 @@ import type { Howl } from 'howler';
 export type SoundName = 'tick' | 'grip' | 'build' | 'whoosh';
 
 /**
- * Sounds are synthesised into WAV data URIs on first enable, so there are no
- * audio assets to fetch and howler itself is only loaded if sound is wanted.
+ * Sounds are synthesised into WAV data URIs, so there are no audio assets to
+ * fetch; howler is code-split and only loaded once sound is (likely) wanted.
  */
 export class Sound {
   private enabled = false;
   private howls: Partial<Record<SoundName, Howl>> = {};
   private loading: Promise<void> | null = null;
+  private uris: Record<SoundName, string> | null = null;
+  private howler: Promise<typeof import('howler')> | null = null;
 
   async setEnabled(on: boolean): Promise<void> {
     this.enabled = on;
@@ -24,30 +26,41 @@ export class Sound {
     h.play();
   }
 
+  /**
+   * Synthesises the WAVs and fetches howler ahead of time (call when idle), so
+   * turning sound on during an interaction doesn't stall a frame.
+   */
+  prepare(): void {
+    this.uris ??= {
+      tick: toWav(synth(0.05, (t) => Math.sin(t * 2 * Math.PI * 1800) * Math.exp(-t * 90) * 0.25)),
+      grip: toWav(
+        synth(0.35, (t) => {
+          const f = 90 - t * 60;
+          return (Math.sin(t * 2 * Math.PI * f) * 0.7 + noise() * 0.08) * Math.exp(-t * 14);
+        }),
+      ),
+      build: toWav(
+        synth(1.2, (t) => {
+          const env = Math.sin(Math.min(1, t / 1.2) * Math.PI) ** 2;
+          // A-minor triad, so the swell sits inside the background music's key.
+          const s = [440, 523.25, 659.25].reduce(
+            (a, f, i) => a + Math.sin(t * 2 * Math.PI * f * (1 + t * 0.02 * i)),
+            0,
+          );
+          return (s / 3) * env * 0.12;
+        }),
+      ),
+      whoosh: toWav(synth(0.4, (t) => noise() * Math.sin((t / 0.4) * Math.PI) ** 2 * 0.12)),
+    };
+    this.howler ??= import('howler');
+  }
+
   private load(): Promise<void> {
-    this.loading ??= import('howler').then(({ Howl }) => {
-      const make = (samples: Float32Array) => new Howl({ src: [toWav(samples)], format: ['wav'] });
-      this.howls = {
-        tick: make(synth(0.05, (t) => Math.sin(t * 2 * Math.PI * 1800) * Math.exp(-t * 90) * 0.25)),
-        grip: make(
-          synth(0.35, (t) => {
-            const f = 90 - t * 60;
-            return (Math.sin(t * 2 * Math.PI * f) * 0.7 + noise() * 0.08) * Math.exp(-t * 14);
-          }),
-        ),
-        build: make(
-          synth(1.2, (t) => {
-            const env = Math.sin(Math.min(1, t / 1.2) * Math.PI) ** 2;
-            // A-minor triad, so the swell sits inside the background music's key.
-            const s = [440, 523.25, 659.25].reduce(
-              (a, f, i) => a + Math.sin(t * 2 * Math.PI * f * (1 + t * 0.02 * i)),
-              0,
-            );
-            return (s / 3) * env * 0.12;
-          }),
-        ),
-        whoosh: make(synth(0.4, (t) => noise() * Math.sin((t / 0.4) * Math.PI) ** 2 * 0.12)),
-      };
+    this.prepare();
+    this.loading ??= (this.howler as Promise<typeof import('howler')>).then(({ Howl }) => {
+      const uris = this.uris as Record<SoundName, string>;
+      const names = Object.keys(uris) as SoundName[];
+      names.forEach((n) => (this.howls[n] = new Howl({ src: [uris[n]], format: ['wav'] })));
     });
     return this.loading;
   }

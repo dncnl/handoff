@@ -49,6 +49,25 @@ function layout(phase: 'gate' | 'stage') {
   return stacked ? { x: 0, y: 0.2, scale: 0.62 } : { x: 0.2, y: 0.02, scale: 0.95 };
 }
 
+const SOUND_KEY = 'handoff-sound';
+
+/** On unless the visitor switched it off before. */
+function readSoundPref(): boolean {
+  try {
+    return localStorage.getItem(SOUND_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+function saveSoundPref(on: boolean): void {
+  try {
+    localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
+  } catch {
+    /* the choice just won't persist */
+  }
+}
+
 async function boot(): Promise<void> {
   const canvas = document.getElementById('gl') as HTMLCanvasElement;
   const overlay = document.getElementById('overlay') as HTMLElement;
@@ -71,6 +90,22 @@ async function boot(): Promise<void> {
   input.hold.on('release', () => charge.release());
   input.hold.on('complete', () => charge.complete());
   const eq = [0, 0, 0, 0];
+
+  // Sound defaults to on. Browsers only allow audio after a gesture, so it starts on the
+  // first press anywhere: capture phase, so it runs before that press can begin the handshake.
+  let soundOn = readSoundPref();
+  const enableAudio = (on: boolean) => {
+    if (on) music.start();
+    else music.stop();
+    return sound.setEnabled(on);
+  };
+  const unlock = () => {
+    window.removeEventListener('pointerdown', unlock, true);
+    window.removeEventListener('keydown', unlock, true);
+    if (soundOn) void enableAudio(true);
+  };
+  window.addEventListener('pointerdown', unlock, true);
+  window.addEventListener('keydown', unlock, true);
   let hudRef: Hud | null = null;
   let palette = readPalette();
   const applyBloom = () => {
@@ -178,7 +213,7 @@ async function boot(): Promise<void> {
   const theFragments = fragments;
   const hero = new Hero(overlay, content);
   const sections = new Sections(overlay, content, reduced);
-  const hud = new Hud(overlay, content);
+  const hud = new Hud(overlay, content, soundOn);
   hudRef = hud;
   caption = new ScreenCaption(overlay, content.whatIBuild.kinds);
   gate = new Gate(overlay, input, renderer, theHand, cursor);
@@ -346,13 +381,11 @@ async function boot(): Promise<void> {
     applyBloom();
   });
   hud.onSound((on) => {
-    // Music starts inside the click so the browser allows the AudioContext.
-    if (on) music.start();
-    else {
-      music.stop();
-      hud.setLevels([0, 0, 0, 0]);
-    }
-    void sound.setEnabled(on).then(() => on && sound.play('tick'));
+    soundOn = on;
+    saveSoundPref(on);
+    // Runs inside the click, so the browser allows the AudioContext.
+    void enableAudio(on).then(() => on && sound.play('tick'));
+    if (!on) hud.setLevels([0, 0, 0, 0]);
   });
 
   window.addEventListener('resize', () => {
@@ -398,6 +431,10 @@ async function boot(): Promise<void> {
     await finish();
   });
 
+  // Do the audio prep while idle, so the first press only has to start playback.
+  const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 200));
+  idle(() => music.prepare());
+  idle(() => sound.prepare());
   await preloader.exit();
 
   hud.showControls(reduced());

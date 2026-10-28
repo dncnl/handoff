@@ -41,6 +41,7 @@ export class Music {
   private nextChordAt = 0;
   private chord = 0;
   playing = false;
+  private ir: [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>] | null = null;
   /** Effect inputs for other synths on this context: straight out, into the room, into the echo. */
   fxDry!: GainNode;
   fxWet!: GainNode;
@@ -52,6 +53,21 @@ export class Music {
       if (document.hidden) void this.ctx.suspend();
       else void this.ctx.resume();
     });
+  }
+
+  /** Builds the reverb tail ahead of time (call when idle), so starting is cheap. */
+  prepare(): void {
+    this.ir ??= impulseData(IR_RATE, 4.2);
+  }
+
+  private impulse(ctx: AudioContext): AudioBuffer {
+    this.prepare();
+    const [l, r] = this.ir as [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>];
+    // Rendered at 48 kHz; at another rate the tail is just slightly longer or shorter.
+    const buf = ctx.createBuffer(2, l.length, ctx.sampleRate);
+    buf.copyToChannel(l, 0);
+    buf.copyToChannel(r, 1);
+    return buf;
   }
 
   /** Call from a user gesture: browsers only allow audio to start from one. */
@@ -140,7 +156,7 @@ export class Music {
     lfo.connect(lfoDepth).connect(this.bus.frequency);
     lfo.start();
 
-    const reverb = new ConvolverNode(ctx, { buffer: impulse(ctx, 4.2) });
+    const reverb = new ConvolverNode(ctx, { buffer: this.impulse(ctx) });
     const wet = new GainNode(ctx, { gain: 0.55 });
     const dry = new GainNode(ctx, { gain: 0.7 });
 
@@ -229,12 +245,19 @@ export class Music {
   }
 }
 
+const IR_RATE = 48000;
+
 /** Stereo decaying-noise impulse: a soft, dark room with no asset to fetch. */
-function impulse(ctx: AudioContext, seconds: number): AudioBuffer {
-  const len = Math.floor(ctx.sampleRate * seconds);
-  const buf = ctx.createBuffer(2, len, ctx.sampleRate);
-  for (let ch = 0; ch < 2; ch++) {
-    const data = buf.getChannelData(ch);
+function impulseData(
+  rate: number,
+  seconds: number,
+): [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>] {
+  const len = Math.floor(rate * seconds);
+  const out: [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>] = [
+    new Float32Array(len),
+    new Float32Array(len),
+  ];
+  for (const data of out) {
     let lp = 0;
     for (let i = 0; i < len; i++) {
       const t = i / len;
@@ -243,5 +266,5 @@ function impulse(ctx: AudioContext, seconds: number): AudioBuffer {
       data[i] = lp * (1 - t) ** 3.2;
     }
   }
-  return buf;
+  return out;
 }

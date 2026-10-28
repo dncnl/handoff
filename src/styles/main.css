@@ -582,6 +582,39 @@ a {
   margin-top: var(--s-1);
 }
 
+.activity {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.activity__label,
+.activity__time,
+.activity__status {
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--c-ink-dim);
+}
+
+.activity__list {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.activity__list li {
+  display: grid;
+  gap: 2px;
+}
+
+.activity__line {
+  font-size: var(--t-sm);
+  line-height: 1.45;
+}
+
+.activity__detail {
+  color: var(--c-ink-dim);
+}
+
 .contact li {
   display: grid;
   gap: 2px;
