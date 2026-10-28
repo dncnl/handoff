@@ -19,6 +19,10 @@
   --c-glow: #c79a4a; /* hand rim + bloom tint, warmer than text ochre */
   --c-screen-ink: #fcfaf6; /* caption text sits on the 3D screen */
   --c-screen-dim: rgba(252, 250, 246, 0.72);
+  /* WebGL: background pool, and the floating screen (an ink slab on paper). */
+  --c-scene-deep: #e4dfcd;
+  --c-scene-mid: #fcfaf6;
+  --c-scene-screen: #171613;
   --shadow-hard: 4px 4px 0 var(--c-ink);
 
   /* Type */
@@ -79,4 +83,7 @@
   --c-glow: #e0b366;
   --c-screen-ink: #f3ecd8;
   --c-screen-dim: rgba(234, 230, 216, 0.72);
+  --c-scene-deep: #0a0908;
+  --c-scene-mid: #24211c;
+  --c-scene-screen: #1c1a16;
 }

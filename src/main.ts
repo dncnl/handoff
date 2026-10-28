@@ -13,6 +13,8 @@ import { Theme } from './core/Theme';
 import { Timeline } from './core/Timeline';
 import { Input } from './core/Input';
 import { Background } from './scene/Background';
+import { handRimColor } from './scene/handMaterial';
+import { readPalette, tweenColor } from './scene/palette';
 import { createHand, type Hand, type PoseName } from './scene/Hand';
 import { Fragments } from './scene/Fragments';
 import { Preloader } from './ui/Preloader';
@@ -59,7 +61,14 @@ async function boot(): Promise<void> {
   const input = new Input();
   const cursor = new Cursor(document.body);
   const sound = new Sound();
-  const bg = new Background();
+  let palette = readPalette();
+  const applyBloom = () => {
+    renderer.bloomScale = palette.light ? 0.35 : 1;
+    renderer.setBloomThreshold(palette.light ? 0.97 : 0.62);
+  };
+  applyBloom();
+  tweenColor(handRimColor.value, palette.glow, 0);
+  const bg = new Background(palette);
   renderer.scene.add(bg.mesh);
   renderer.onResize((w, h) => bg.resize(w, h));
 
@@ -131,7 +140,7 @@ async function boot(): Promise<void> {
   );
   hand = await createHand(tHand);
   hand.motion = !reduced();
-  fragments = new Fragments();
+  fragments = new Fragments(palette);
   renderer.scene.add(hand.object, fragments.group);
 
   const gl = layout('gate');
@@ -302,7 +311,15 @@ async function boot(): Promise<void> {
   hud.onSelect((i) => sections.goTo(i));
   hud.setTheme(theme.current);
   hud.onTheme(() => theme.toggle());
-  theme.onChange((t) => hud.setTheme(t));
+  theme.onChange((t) => {
+    hud.setTheme(t);
+    palette = readPalette();
+    const d = reduced() ? 0 : D.s;
+    bg.setPalette(palette, d);
+    theFragments.setPalette(palette, d);
+    tweenColor(handRimColor.value, palette.glow, d);
+    applyBloom();
+  });
   hud.onSound((on) => void sound.setEnabled(on).then(() => on && sound.play('tick')));
 
   window.addEventListener('resize', () => {

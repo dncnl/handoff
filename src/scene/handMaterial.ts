@@ -35,8 +35,8 @@ function createMatcap(size = 256): CanvasTexture {
   // Accent-tinted bounce from below ties the hand to the glowing screen.
   g.globalCompositeOperation = 'screen';
   const bounce = g.createRadialGradient(s * 0.55, s * 0.98, 0, s * 0.55, s * 0.98, s * 0.42);
-  bounce.addColorStop(0, 'rgba(160,190,90,0.45)');
-  bounce.addColorStop(1, 'rgba(160,190,90,0)');
+  bounce.addColorStop(0, 'rgba(200,150,80,0.4)');
+  bounce.addColorStop(1, 'rgba(200,150,80,0)');
   g.fillStyle = bounce;
   g.fillRect(0, 0, s, s);
 
@@ -51,6 +51,9 @@ function createMatcap(size = 256): CanvasTexture {
   return tex;
 }
 
+/** Shared by every hand material so a theme change recolours whichever hand is live. */
+export const handRimColor: IUniform<Color> = { value: new Color('#e0b366') };
+
 export interface HandMaterial {
   material: MeshMatcapMaterial;
   rim: IUniform<number>;
@@ -59,11 +62,10 @@ export interface HandMaterial {
 /** Matcap plus a fresnel rim; the rim is what bloom catches during the pulse. */
 export function createHandMaterial(): HandMaterial {
   const rim: IUniform<number> = { value: 0.18 };
-  const rimColor: IUniform<Color> = { value: new Color('#d9ff8a') };
   const material = new MeshMatcapMaterial({ matcap: createMatcap() });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRim = rim;
-    shader.uniforms.uRimColor = rimColor;
+    shader.uniforms.uRimColor = handRimColor;
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',

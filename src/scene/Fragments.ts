@@ -1,10 +1,10 @@
 import {
-  AdditiveBlending,
   Color,
   DoubleSide,
   Group,
   InstancedBufferAttribute,
   InstancedMesh,
+  NormalBlending,
   PlaneGeometry,
   ShaderMaterial,
   Vector2,
@@ -14,6 +14,7 @@ import {
 } from 'three';
 import { gsap } from 'gsap';
 import { D, EASE_GLSL } from '../core/ease';
+import { tweenColor, type ScenePalette } from './palette';
 
 const COLS = 15;
 const ROWS = 8;
@@ -208,7 +209,7 @@ export class Fragments {
   private flipTween: gsap.core.Tween | null = null;
   private placed = false;
 
-  constructor() {
+  constructor(palette: ScenePalette) {
     const geo = new PlaneGeometry(1, 1);
     const cell = new Float32Array(FRAGMENT_COUNT * 2);
     const far = new Float32Array(FRAGMENT_COUNT * 3);
@@ -253,20 +254,28 @@ export class Fragments {
       fragmentShader: frag,
       transparent: true,
       depthWrite: false,
-      blending: AdditiveBlending,
+      // Normal, not additive: an ink slab has to stay visible on cream paper.
+      blending: NormalBlending,
       side: DoubleSide,
       uniforms: {
         ...this.u,
         uSize: { value: SIZE },
         uCell: { value: new Vector2(SIZE.x / COLS, SIZE.y / ROWS) },
-        uColor: { value: new Color('#c8f560') },
-        uTint: { value: new Color('#16200c') },
+        uColor: { value: new Color() },
+        uTint: { value: new Color() },
       },
     });
     this.mesh = new InstancedMesh(geo, mat, FRAGMENT_COUNT);
     // Instances move in the shader, so CPU bounds are meaningless.
     this.mesh.frustumCulled = false;
     this.group.add(this.mesh);
+    this.setPalette(palette, 0);
+  }
+
+  setPalette(p: ScenePalette, duration: number): void {
+    const m = this.mesh.material as ShaderMaterial;
+    tweenColor(m.uniforms.uColor!.value as Color, p.glow, duration);
+    tweenColor(m.uniforms.uTint!.value as Color, p.screen, duration);
   }
 
   /** Swaps the abstract glyph with a flip wave; mode -1 is the idle shimmer. */
