@@ -14,6 +14,7 @@ import { Timeline } from './core/Timeline';
 import { Input } from './core/Input';
 import { Background } from './scene/Background';
 import { handRimColor } from './scene/handMaterial';
+import { Lights } from './scene/lights';
 import { readPalette, tweenColor } from './scene/palette';
 import { createHand, type Hand, type PoseName } from './scene/Hand';
 import { Fragments } from './scene/Fragments';
@@ -64,11 +65,15 @@ async function boot(): Promise<void> {
   let palette = readPalette();
   const applyBloom = () => {
     renderer.bloomScale = palette.light ? 0.35 : 1;
-    renderer.setBloomThreshold(palette.light ? 0.97 : 0.62);
+    renderer.setBloomThreshold(palette.light ? 0.97 : 0.8);
   };
   applyBloom();
   tweenColor(handRimColor.value, palette.glow, 0);
   const bg = new Background(palette);
+  const lights = new Lights(renderer.gl, palette);
+  renderer.scene.add(lights.group);
+  renderer.scene.environment = lights.environment;
+  renderer.scene.environmentIntensity = 0.3;
   renderer.scene.add(bg.mesh);
   renderer.onResize((w, h) => bg.resize(w, h));
 
@@ -317,6 +322,7 @@ async function boot(): Promise<void> {
     const d = reduced() ? 0 : D.s;
     bg.setPalette(palette, d);
     theFragments.setPalette(palette, d);
+    lights.setPalette(palette, d);
     tweenColor(handRimColor.value, palette.glow, d);
     applyBloom();
   });

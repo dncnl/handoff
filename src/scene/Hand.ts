@@ -1,21 +1,21 @@
 import {
-  CapsuleGeometry,
+  Bone,
+  BoxGeometry,
   Group,
   MathUtils,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
-  BoxGeometry,
   Object3D,
   Quaternion,
-  SphereGeometry,
+  Skeleton,
+  SkinnedMesh,
   Vector3,
-  type Material,
 } from 'three';
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { gsap } from 'gsap';
 import type { PointerState } from '../core/Input';
-import { createHandMaterial } from './handMaterial';
+import { buildHandRig, FINGERS, type FingerName } from './handGeometry';
+import { createHandMaterial, createNailMaterial } from './handMaterial';
 
 export const POSES = [
   'idle',
@@ -30,7 +30,7 @@ export const POSES = [
 ] as const;
 export type PoseName = (typeof POSES)[number];
 
-/** The contract both the procedural placeholder and a real hand.glb satisfy. */
+/** The contract both the procedural hand and a real hand.glb satisfy. */
 export interface Hand {
   readonly object: Object3D;
   /** Meshes the gate raycasts against for "press the palm". */
@@ -79,10 +79,7 @@ export abstract class HandBase implements Hand {
 }
 
 // ---------------------------------------------------------------------------
-// Procedural placeholder: palm + five jointed capsule fingers.
-
-type FingerName = 'index' | 'middle' | 'ring' | 'pinky';
-const FINGERS: FingerName[] = ['index', 'middle', 'ring', 'pinky'];
+// Procedural hand: one sculpted skinned mesh (see handGeometry.ts), posed by bones.
 
 /** Degrees: [spread, mcp curl, pip curl, dip curl]. */
 type FingerPose = [number, number, number, number];
@@ -227,16 +224,12 @@ const COMPILED = Object.fromEntries(POSES.map((n) => [n, compile(POSE_DEFS[n])])
   CompiledPose
 >;
 
-interface FingerRig {
-  joints: [Object3D, Object3D, Object3D];
-}
-
 class ProceduralHand extends HandBase {
   readonly hitTargets: Object3D[] = [];
   readonly palmAnchor = new Object3D();
   private wrist = new Group();
-  private fingers: FingerRig[] = [];
-  private thumb: [Object3D, Object3D, Object3D];
+  private fingers: [Bone, Bone, Bone][];
+  private thumb: [Bone, Bone, Bone];
   private rim: { value: number };
 
   private cur: CompiledPose = { quat: new Quaternion(), values: new Float32Array(POSE_LEN) };
@@ -247,13 +240,24 @@ class ProceduralHand extends HandBase {
 
   constructor() {
     super();
-    const { material, rim } = createHandMaterial();
+    const { material, rim } = createHandMaterial(true);
     this.rim = rim;
     this.follow.add(this.wrist);
 
-    this.wrist.add(this.buildPalm(material));
-    this.fingers = this.buildFingers(material);
-    this.thumb = this.buildThumb(material);
+    const rig = buildHandRig();
+    this.fingers = rig.fingers;
+    this.thumb = rig.thumb;
+    const skin = new SkinnedMesh(rig.skin, material);
+    const nails = new SkinnedMesh(rig.nails, createNailMaterial(rim));
+    skin.add(rig.root);
+    this.wrist.add(skin, nails);
+    // Bind in the rest pose; both meshes share one skeleton.
+    this.object.updateMatrixWorld(true);
+    const skeleton = new Skeleton(rig.bones);
+    skin.bind(skeleton);
+    nails.bind(skeleton, skin.bindMatrix);
+    // Bones move the vertices on the GPU, so rest-pose bounds are meaningless.
+    skin.frustumCulled = nails.frustumCulled = false;
 
     // Generous invisible proxy: "anywhere on the palm" should not need precision.
     const hit = new Mesh(
@@ -323,7 +327,7 @@ class ProceduralHand extends HandBase {
 
   private tmp = new Vector3();
 
-  /** Writes the current pose vector onto the joint hierarchy. */
+  /** Writes the current pose vector onto the bones. */
   private apply(): void {
     const v = this.cur.values;
     const d = MathUtils.DEG2RAD;
@@ -338,9 +342,9 @@ class ProceduralHand extends HandBase {
       this.tmp.z + (v[2] ?? 0),
     );
 
-    this.fingers.forEach((rig, i) => {
+    this.fingers.forEach((joints, i) => {
       const o = 4 + i * 4;
-      const [a, b, c] = rig.joints;
+      const [a, b, c] = joints;
       a.rotation.set(((v[o + 1] ?? 0) + breath) * d, 0, (v[o] ?? 0) * d);
       b.rotation.x = ((v[o + 2] ?? 0) + breath * 0.6) * d;
       c.rotation.x = (v[o + 3] ?? 0) * d;
@@ -351,90 +355,6 @@ class ProceduralHand extends HandBase {
     cmc.rotation.set((v[t] ?? 0) * d, (v[t + 1] ?? 0) * d, (v[t + 2] ?? 0) * d);
     mcp.rotation.set((v[t + 3] ?? 0) * d, 0, (v[t + 4] ?? 0) * d);
     ip.rotation.x = (v[t + 5] ?? 0) * d;
-  }
-
-  private buildPalm(material: Material): Group {
-    const g = new Group();
-    const geo = new RoundedBoxGeometry(0.92, 1.0, 0.3, 4, 0.14);
-    // Taper toward the wrist and thin toward the knuckles so it reads as a palm, not a box.
-    const pos = geo.attributes.position;
-    if (pos) {
-      for (let i = 0; i < pos.count; i++) {
-        const y = pos.getY(i) + 0.5;
-        pos.setX(i, pos.getX(i) * MathUtils.lerp(0.84, 1.0, y));
-        pos.setZ(i, pos.getZ(i) * MathUtils.lerp(1.1, 0.85, y));
-      }
-      geo.computeVertexNormals();
-    }
-    const palm = new Mesh(geo, material);
-    palm.position.y = 0.5;
-    g.add(palm);
-
-    // Thenar pad at the base of the thumb.
-    const pad = new Mesh(new SphereGeometry(1, 20, 14), material);
-    pad.scale.set(0.22, 0.3, 0.13);
-    pad.position.set(0.22, 0.3, 0.05);
-    g.add(pad);
-
-    const cuff = new Mesh(new CapsuleGeometry(0.26, 0.28, 6, 18), material);
-    cuff.scale.set(1.3, 1, 0.62);
-    cuff.position.y = -0.12;
-    g.add(cuff);
-    return g;
-  }
-
-  private buildFingers(material: Material): FingerRig[] {
-    const specs: Record<
-      FingerName,
-      { x: number; y: number; r: number; len: [number, number, number] }
-    > = {
-      index: { x: 0.31, y: 0.97, r: 0.088, len: [0.4, 0.25, 0.19] },
-      middle: { x: 0.105, y: 1.01, r: 0.09, len: [0.44, 0.28, 0.2] },
-      ring: { x: -0.1, y: 0.98, r: 0.085, len: [0.41, 0.26, 0.19] },
-      pinky: { x: -0.3, y: 0.9, r: 0.074, len: [0.32, 0.2, 0.16] },
-    };
-    return FINGERS.map((name) => {
-      const s = specs[name];
-      const joints = this.chain(material, s.r, s.len);
-      joints[0].position.set(s.x, s.y, 0);
-      this.wrist.add(joints[0]);
-      return { joints };
-    });
-  }
-
-  private buildThumb(material: Material): [Object3D, Object3D, Object3D] {
-    const joints = this.chain(material, 0.105, [0.34, 0.27, 0.22]);
-    joints[0].position.set(0.3, 0.22, 0.04);
-    joints[0].rotation.order = 'ZXY';
-    this.wrist.add(joints[0]);
-    return joints;
-  }
-
-  /** A three-segment joint chain; each pivot sits at the previous segment's tip. */
-  private chain(
-    material: Material,
-    radius: number,
-    len: [number, number, number],
-  ): [Object3D, Object3D, Object3D] {
-    const pivots: Object3D[] = [];
-    let parent: Object3D | null = null;
-    len.forEach((l, i) => {
-      const pivot = new Object3D();
-      pivot.rotation.order = 'ZXY';
-      const r = radius * (1 - i * 0.07);
-      const seg = new Mesh(new CapsuleGeometry(r, l, 6, 14), material);
-      seg.position.y = l / 2;
-      // Slightly flattened like real fingers.
-      seg.scale.z = 0.88;
-      pivot.add(seg);
-      if (parent) {
-        pivot.position.y = len[i - 1] ?? 0;
-        parent.add(pivot);
-      }
-      pivots.push(pivot);
-      parent = pivot;
-    });
-    return pivots as [Object3D, Object3D, Object3D];
   }
 }
 
@@ -456,7 +376,7 @@ export async function createHand(onProgress: (p: number) => void = () => {}): Pr
       const { loadGltfHand } = await import('./GltfHand');
       return await loadGltfHand(url, onProgress);
     } catch (err) {
-      console.warn('[hand] hand.glb failed to load, using placeholder', err);
+      console.warn('[hand] hand.glb failed to load, using the procedural hand', err);
     }
   }
   onProgress(1);
