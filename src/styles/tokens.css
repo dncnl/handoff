@@ -1,0 +1,47 @@
+:root {
+  /* Color — warm ink, clay, one acid accent that also drives the 3D glow. */
+  --c-bg-0: #0a0b0e;
+  --c-bg-1: #15171d;
+  --c-ink: #ece8df;
+  --c-ink-dim: #9a988f;
+  --c-ink-faint: #5c5b57;
+  --c-line: rgba(236, 232, 223, 0.14);
+  --c-accent: #c8f560;
+  --c-accent-ink: #0d1203;
+
+  /* Type */
+  --f-sans: 'Inter Tight Variable', 'Inter Tight', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  --t-xs: 0.6875rem;
+  --t-sm: 0.8125rem;
+  --t-md: 1rem;
+  --t-lg: 1.25rem;
+  --t-xl: clamp(1.75rem, 1.1rem + 2.6vw, 3.25rem);
+  --tracking-mono: 0.04em;
+
+  /* Spacing */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 72px;
+  --gutter: clamp(16px, 3.2vw, 40px);
+
+  /* Motion — the only curve, mirrored by src/core/ease.ts. */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --d-1: 0.2s;
+  --d-2: 0.4s;
+  --d-3: 0.8s;
+  --d-4: 1.2s;
+
+  --z-canvas: 0;
+  --z-overlay: 10;
+  --z-hud: 20;
+  --z-gate: 30;
+  --z-veil: 40;
+  --z-preloader: 50;
+  --z-cursor: 60;
+}
