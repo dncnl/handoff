@@ -6,15 +6,23 @@ export interface WorkKind {
   body: string;
 }
 
+export interface Skill {
+  name: string;
+  /** Simple Icons slug, as on the Portfolio; omitted where there's no glyph. */
+  slug?: string;
+}
+
 export interface SkillGroup {
   name: string;
-  items: string[];
+  items: Skill[];
 }
 
 export interface Certification {
   name: string;
   issuer: string;
   issued?: string;
+  badge: string;
+  href: string;
 }
 
 export interface ContactLink {
@@ -73,19 +81,72 @@ export const content: Content = {
   skills: [
     {
       name: 'Full-stack web',
-      items: ['Node.js', 'Express', 'JavaScript', 'PostgreSQL', 'Supabase'],
+      items: [
+        { name: 'Node.js', slug: 'nodedotjs' },
+        { name: 'Express', slug: 'express' },
+        { name: 'JavaScript', slug: 'javascript' },
+        { name: 'PostgreSQL', slug: 'postgresql' },
+        { name: 'Supabase', slug: 'supabase' },
+      ],
     },
     {
       name: 'Machine learning & data',
-      items: ['Python', 'scikit-learn', 'pandas', 'NumPy', 'Seaborn'],
+      items: [
+        { name: 'Python', slug: 'python' },
+        { name: 'scikit-learn', slug: 'scikitlearn' },
+        { name: 'pandas', slug: 'pandas' },
+        { name: 'NumPy', slug: 'numpy' },
+        { name: 'Seaborn' },
+      ],
     },
-    { name: 'Software & UI', items: ['Tkinter', 'CustomTkinter', 'Figma', 'Flutter'] },
-    { name: 'Technical documentation', items: ['Architecture docs', 'Literature review'] },
-    { name: 'Languages', items: ['Python', 'Java', 'JavaScript', 'C#', 'C++', 'Dart'] },
+    {
+      name: 'Software & UI',
+      items: [
+        { name: 'Tkinter' },
+        { name: 'CustomTkinter' },
+        { name: 'Figma', slug: 'figma' },
+        { name: 'Flutter', slug: 'flutter' },
+      ],
+    },
+    {
+      name: 'Languages',
+      items: [
+        { name: 'Python', slug: 'python' },
+        { name: 'Java', slug: 'openjdk' },
+        { name: 'JavaScript', slug: 'javascript' },
+        { name: 'C#' },
+        { name: 'C++', slug: 'cplusplus' },
+        { name: 'Dart', slug: 'dart' },
+      ],
+    },
+    {
+      name: 'Tools',
+      items: [
+        { name: 'Git', slug: 'git' },
+        { name: 'GitHub', slug: 'github' },
+        { name: 'VS Code' },
+        { name: 'Claude Code', slug: 'claude' },
+      ],
+    },
+    {
+      name: 'Technical documentation',
+      items: [{ name: 'Architecture docs' }, { name: 'Literature review' }],
+    },
   ],
   certifications: [
-    { name: 'Introduction to Data Science', issuer: 'Cisco' },
-    { name: 'Introduction to Cybersecurity', issuer: 'Cisco', issued: '5/4/2026' },
+    {
+      name: 'Introduction to Data Science',
+      issuer: 'Cisco',
+      badge: '/credentials/cisco-intro-to-data-science.png',
+      href: 'https://www.credly.com/badges/95acc8ae-eb98-4e9d-9779-076f3c5820db/public_url',
+    },
+    {
+      name: 'Introduction to Cybersecurity',
+      issuer: 'Cisco',
+      issued: '5/4/2026',
+      badge: '/credentials/cisco-intro-to-cybersecurity.png',
+      href: 'https://www.credly.com/badges/c81fc21d-45e7-48a7-818b-af6fe0832e6b/public_url',
+    },
   ],
   // Hardcoded for Milestone 1; Milestone 2 replaces this with a build-time fetch.
   github: {

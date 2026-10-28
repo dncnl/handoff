@@ -30,7 +30,7 @@
   --t-sm: 0.875rem;
   --t-md: 1rem;
   --t-lg: 1.3125rem;
-  --t-xl: clamp(2.25rem, 1.2rem + 4.2vw, 4.75rem);
+  --t-xl: clamp(2rem, 1.1rem + 3vw, 3.5rem);
   --tracking-mono: 0;
   --tracking-wide: 0.08em;
   --tracking-wider: 0.16em;

@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import { D } from '../core/ease';
 import type { Content } from '../content/content';
+import { techIcon } from './techIcon';
 
 const esc = (s: string) =>
   s.replace(
@@ -19,17 +20,17 @@ function panelBody(c: Content, id: Content['sections'][number]['id']): string {
         .map(
           (g) =>
             `<div class="skills__group"><dt class="mono">${esc(g.name)}</dt><dd><ul class="chips">${g.items
-              .map((i) => `<li>${esc(i)}</li>`)
+              .map((i) => `<li>${techIcon(i.slug)}<span>${esc(i.name)}</span></li>`)
               .join('')}</ul></dd></div>`,
         )
         .join('')}</dl>`;
     case 'certs':
       return `<ul class="certs">${c.certifications
         .map(
-          (x) =>
-            `<li><span class="mono certs__issuer">${esc(x.issuer)}</span><span class="certs__name">${esc(x.name)}</span>${
+          (x, i) =>
+            `<li><img class="certs__badge" src="${esc(x.badge)}" alt="" width="96" height="96" decoding="async" style="animation-delay:${-i * 280}ms" /><div class="certs__text"><span class="mono certs__issuer">${esc(x.issuer)}</span><span class="certs__name">${esc(x.name)}</span>${
               x.issued ? `<span class="mono certs__date">Issued ${esc(x.issued)}</span>` : ''
-            }</li>`,
+            }<a class="btn mono" href="${esc(x.href)}" target="_blank" rel="noopener">View credential ↗</a></div></li>`,
         )
         .join('')}</ul>`;
     case 'github':
