@@ -12,8 +12,9 @@ import {
  * Rest pose, wrist space: fingers point +Y, the palm faces +Z, the thumb sits on +X.
  * Fingers and thumb are lofted tubes whose bases sink into a lofted palm; skin
  * weights blend smoothly across every joint, so bends stay round with no seams.
- * Per-vertex `aDetail` (distance to nearest crease, palm/back side, region) lets
- * the skin shader draw creases and knuckle wrinkles without a texture.
+ * Per-vertex `aDetail` (distance along the digit, palm/back side, region, digit)
+ * plus each digit's crease positions let the skin shader draw creases and
+ * knuckle wrinkles without a texture.
  */
 
 export type FingerName = 'index' | 'middle' | 'ring' | 'pinky';
@@ -118,7 +119,7 @@ class Builder {
   vert(
     p: Vector3,
     c: [number, number, number],
-    d: [number, number, number],
+    d: [number, number, number, number],
     fade: number,
     w: [number, number][],
   ): number {
@@ -153,7 +154,7 @@ class Builder {
     const geo = new BufferGeometry();
     geo.setAttribute('position', new Float32BufferAttribute(this.pos, 3));
     geo.setAttribute('color', new Float32BufferAttribute(this.col, 3));
-    geo.setAttribute('aDetail', new Float32BufferAttribute(this.det, 3));
+    geo.setAttribute('aDetail', new Float32BufferAttribute(this.det, 4));
     geo.setAttribute('aFade', new Float32BufferAttribute(this.fade, 1));
     geo.setAttribute('skinIndex', new Uint16BufferAttribute(this.si, 4));
     geo.setAttribute('skinWeight', new Float32BufferAttribute(this.sw, 4));
@@ -252,18 +253,12 @@ class Digit {
       [d, t2],
     ];
   }
-
-  creaseDist(s: number): number {
-    let best = 9;
-    for (const c of this.creases) if (Math.abs(s - c) < Math.abs(best)) best = s - c;
-    return best;
-  }
 }
 
 const RED: [number, number, number] = [0.97, 0.79, 0.75];
 const PALM: [number, number, number] = [0.98, 0.92, 0.88];
 const BASE: [number, number, number] = [0.94, 0.93, 0.92];
-function tint(red: number, palm: number): [number, number, number] {
+export function tint(red: number, palm: number): [number, number, number] {
   const r = Math.min(1, red);
   const p = Math.min(1, palm) * (1 - r);
   return [0, 1, 2].map(
@@ -271,7 +266,7 @@ function tint(red: number, palm: number): [number, number, number] {
   ) as [number, number, number];
 }
 
-function buildDigit(b: Builder, d: Digit, region: number): void {
+function buildDigit(b: Builder, d: Digit, region: number, digit: number): void {
   const NU = 26;
   const main = 46;
   const capRings = 9;
@@ -296,7 +291,7 @@ function buildDigit(b: Builder, d: Digit, region: number): void {
       b.vert(
         p,
         tint(knuckle * 0.55 + tip, Math.max(0, sn) * 0.9),
-        [d.creaseDist(s), sn, region],
+        [s, sn, region, digit],
         1,
         d.weights(s),
       );
@@ -305,7 +300,13 @@ function buildDigit(b: Builder, d: Digit, region: number): void {
     prev = start;
   }
   // Close the fingertip with a fan to a single pole.
-  const tipIdx = b.vert(d.point(d.L, 0), tint(0.75, 0.4), [9, 0, region], 1, d.weights(d.L));
+  const tipIdx = b.vert(
+    d.point(d.L, 0),
+    tint(0.75, 0.4),
+    [d.L, 0, region, digit],
+    1,
+    d.weights(d.L),
+  );
   for (let j = 0; j < NU; j++) b.idx.push(prev + j, tipIdx, prev + ((j + 1) % NU));
 }
 
@@ -335,7 +336,7 @@ function buildNail(b: Builder, d: Digit, thumb: boolean): void {
       // Crowned across, and settling into the skin at the cuticle and free edge.
       const lift = (0.002 + 0.004 * (1 - a * a)) * Math.sin(Math.PI * (0.15 + 0.7 * t));
       p.add(axis.sub(p).normalize().multiplyScalar(-lift));
-      b.vert(p, [1, 1, 1], [9, -1, 3], 1, [[dip, 1]]);
+      b.vert(p, [1, 1, 1], [9, -1, 3, 0], 1, [[dip, 1]]);
     }
     if (prev >= 0) b.strip(prev, start, NA, false);
     prev = start;
@@ -443,7 +444,7 @@ function buildPalm(b: Builder, fingerMcp: number[], thumbCmc: number, root: numb
       const knuckle = fx.reduce((a, f) => a + g(x - f, 0.06) * g(y - yk + 0.05, 0.06), 0) * back;
       const palmTint = palmSide * (0.6 + 0.4 * smooth(-0.2, 0.3, y));
       const red = knuckle * 0.5 + 0.18 * palmSide * g(x - 0.22, 0.12) * g(y - 0.3, 0.15);
-      b.vert(p, tint(red, palmTint), [9, sn, 0], smooth(-0.95, -0.45, y), w);
+      b.vert(p, tint(red, palmTint), [9, sn, 0, 0], smooth(-0.95, -0.45, y), w);
     }
     if (prev >= 0) b.strip(prev, start, NU, true);
     prev = start;
@@ -457,6 +458,8 @@ export interface HandRig {
   bones: Bone[];
   fingers: [Bone, Bone, Bone][];
   thumb: [Bone, Bone, Bone];
+  /** Crease positions along each digit (index, middle, ring, pinky, thumb). */
+  creases: [number, number, number][];
   skin: BufferGeometry;
   nails: BufferGeometry;
 }
@@ -506,10 +509,16 @@ export function buildHandRig(): HandRig {
     ix(thumb[0]),
     0,
   );
-  digits.forEach((d) => buildDigit(skin, d, 1));
-  buildDigit(skin, thumbDigit, 2);
+  digits.forEach((d, i) => buildDigit(skin, d, 1, i));
+  buildDigit(skin, thumbDigit, 2, 4);
   digits.forEach((d) => buildNail(nails, d, false));
   buildNail(nails, thumbDigit, true);
 
-  return { root, bones, fingers, thumb, skin: skin.geometry(), nails: nails.geometry() };
+  const creases = [...digits, thumbDigit].map((d) => padCreases(d.creases));
+  return { root, bones, fingers, thumb, creases, skin: skin.geometry(), nails: nails.geometry() };
+}
+
+/** Three crease positions per digit for the shader; unused slots sit far away. */
+export function padCreases(c: number[]): [number, number, number] {
+  return [c[0] ?? 99, c[1] ?? 99, c[2] ?? 99];
 }

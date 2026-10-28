@@ -1,6 +1,6 @@
 import {
-  Bone,
   BoxGeometry,
+  Euler,
   Group,
   MathUtils,
   Matrix4,
@@ -79,7 +79,7 @@ export abstract class HandBase implements Hand {
 }
 
 // ---------------------------------------------------------------------------
-// Procedural hand: one sculpted skinned mesh (see handGeometry.ts), posed by bones.
+// Poses, shared by every hand: authored once, retargeted onto each rig.
 
 /** Degrees: [spread, mcp curl, pip curl, dip curl]. */
 type FingerPose = [number, number, number, number];
@@ -224,53 +224,53 @@ const COMPILED = Object.fromEntries(POSES.map((n) => [n, compile(POSE_DEFS[n])])
   CompiledPose
 >;
 
-class ProceduralHand extends HandBase {
-  readonly hitTargets: Object3D[] = [];
+/**
+ * A joint the pose driver can bend. Pose angles are authored in a canonical frame
+ * (x: curl axis, y: along the bone, z: palm normal); `left` and `right` carry them
+ * into the bone's own space: quaternion = left · Euler(ZXY) · right. For a bone that
+ * already uses the canonical frame both are identity.
+ */
+export interface PoseJoint {
+  bone: Object3D;
+  left: Quaternion;
+  right: Quaternion;
+}
+
+export const plainJoint = (bone: Object3D): PoseJoint => ({
+  bone,
+  left: new Quaternion(),
+  right: new Quaternion(),
+});
+
+type Chain = [PoseJoint, PoseJoint, PoseJoint];
+
+/** Blends between compiled poses and writes them onto a wrist group and its joints. */
+export abstract class PosedHand extends HandBase {
   readonly palmAnchor = new Object3D();
-  private wrist = new Group();
-  private fingers: [Bone, Bone, Bone][];
-  private thumb: [Bone, Bone, Bone];
-  private rim: { value: number };
+  /** Wrist space: fingers +Y, palm +Z, thumb +X. */
+  protected readonly wrist = new Group();
+  protected fingers: Chain[] = [];
+  protected thumb: Chain | null = null;
+  protected abstract rim: { value: number };
 
   private cur: CompiledPose = { quat: new Quaternion(), values: new Float32Array(POSE_LEN) };
   private from: CompiledPose = { quat: new Quaternion(), values: new Float32Array(POSE_LEN) };
   private to: CompiledPose = COMPILED.idle;
   private blend = { t: 1 };
   private tween: gsap.core.Tween | null = null;
+  private tmp = new Vector3();
+  private euler = new Euler(0, 0, 0, 'ZXY');
+  private q = new Quaternion();
 
   constructor() {
     super();
-    const { material, rim } = createHandMaterial(true);
-    this.rim = rim;
     this.follow.add(this.wrist);
-
-    const rig = buildHandRig();
-    this.fingers = rig.fingers;
-    this.thumb = rig.thumb;
-    const skin = new SkinnedMesh(rig.skin, material);
-    const nails = new SkinnedMesh(rig.nails, createNailMaterial(rim));
-    skin.add(rig.root);
-    this.wrist.add(skin, nails);
-    // Bind in the rest pose; both meshes share one skeleton.
-    this.object.updateMatrixWorld(true);
-    const skeleton = new Skeleton(rig.bones);
-    skin.bind(skeleton);
-    nails.bind(skeleton, skin.bindMatrix);
-    // Bones move the vertices on the GPU, so rest-pose bounds are meaningless.
-    skin.frustumCulled = nails.frustumCulled = false;
-
-    // Generous invisible proxy: "anywhere on the palm" should not need precision.
-    const hit = new Mesh(
-      new BoxGeometry(1.25, 1.9, 0.7),
-      new MeshBasicMaterial({ visible: false }),
-    );
-    hit.position.set(0, 0.95, 0);
-    this.wrist.add(hit);
-    this.hitTargets.push(hit);
-
     this.palmAnchor.position.set(0, 0.55, 1.35);
     this.wrist.add(this.palmAnchor);
+  }
 
+  /** Subclasses call this once their joints are in place. */
+  protected start(): void {
     this.copyPose(COMPILED.idle, this.cur);
     this.apply();
   }
@@ -325,12 +325,15 @@ class ProceduralHand extends HandBase {
     dst.values.set(src.values);
   }
 
-  private tmp = new Vector3();
+  private bend(j: PoseJoint, x: number, y: number, z: number): void {
+    const d = MathUtils.DEG2RAD;
+    this.q.setFromEuler(this.euler.set(x * d, y * d, z * d));
+    j.bone.quaternion.copy(j.left).multiply(this.q).multiply(j.right);
+  }
 
-  /** Writes the current pose vector onto the bones. */
+  /** Writes the current pose vector onto the joints. */
   private apply(): void {
     const v = this.cur.values;
-    const d = MathUtils.DEG2RAD;
     const breath = this.motion ? Math.sin(this.time * 1.25) * 1.2 : 0;
 
     this.wrist.quaternion.copy(this.cur.quat);
@@ -345,17 +348,55 @@ class ProceduralHand extends HandBase {
     this.fingers.forEach((joints, i) => {
       const o = 4 + i * 4;
       const [a, b, c] = joints;
-      a.rotation.set(((v[o + 1] ?? 0) + breath) * d, 0, (v[o] ?? 0) * d);
-      b.rotation.x = ((v[o + 2] ?? 0) + breath * 0.6) * d;
-      c.rotation.x = (v[o + 3] ?? 0) * d;
+      this.bend(a, (v[o + 1] ?? 0) + breath, 0, v[o] ?? 0);
+      this.bend(b, (v[o + 2] ?? 0) + breath * 0.6, 0, 0);
+      this.bend(c, v[o + 3] ?? 0, 0, 0);
     });
 
+    if (!this.thumb) return;
     const t = 4 + FINGERS.length * 4;
     const [cmc, mcp, ip] = this.thumb;
-    cmc.rotation.set((v[t] ?? 0) * d, (v[t + 1] ?? 0) * d, (v[t + 2] ?? 0) * d);
-    mcp.rotation.set((v[t + 3] ?? 0) * d, 0, (v[t + 4] ?? 0) * d);
-    ip.rotation.x = (v[t + 5] ?? 0) * d;
+    this.bend(cmc, v[t] ?? 0, v[t + 1] ?? 0, v[t + 2] ?? 0);
+    this.bend(mcp, v[t + 3] ?? 0, 0, v[t + 4] ?? 0);
+    this.bend(ip, v[t + 5] ?? 0, 0, 0);
   }
+}
+
+class ProceduralHand extends PosedHand {
+  readonly hitTargets: Object3D[] = [];
+  protected rim: { value: number };
+
+  constructor() {
+    super();
+    const rig = buildHandRig();
+    const { material, rim } = createHandMaterial({ detail: true, creases: rig.creases });
+    this.rim = rim;
+
+    this.fingers = rig.fingers.map((f) => f.map(plainJoint) as Chain);
+    this.thumb = rig.thumb.map(plainJoint) as Chain;
+    const skin = new SkinnedMesh(rig.skin, material);
+    const nails = new SkinnedMesh(rig.nails, createNailMaterial(rim));
+    skin.add(rig.root);
+    this.wrist.add(skin, nails);
+    // Bind in the rest pose; both meshes share one skeleton.
+    this.object.updateMatrixWorld(true);
+    const skeleton = new Skeleton(rig.bones);
+    skin.bind(skeleton);
+    nails.bind(skeleton, skin.bindMatrix);
+    // Bones move the vertices on the GPU, so rest-pose bounds are meaningless.
+    skin.frustumCulled = nails.frustumCulled = false;
+
+    this.hitTargets.push(addPalmHitTarget(this.wrist));
+    this.start();
+  }
+}
+
+/** Generous invisible proxy: "anywhere on the palm" should not need precision. */
+export function addPalmHitTarget(wrist: Object3D): Object3D {
+  const hit = new Mesh(new BoxGeometry(1.25, 1.9, 0.7), new MeshBasicMaterial({ visible: false }));
+  hit.position.set(0, 0.95, 0);
+  wrist.add(hit);
+  return hit;
 }
 
 async function hasModel(url: string): Promise<boolean> {
@@ -368,13 +409,13 @@ async function hasModel(url: string): Promise<boolean> {
   }
 }
 
-/** Uses hand.glb when present; otherwise the procedural hand with the same API. */
+/** The rigged model in /models/hand.glb; the procedural hand if it can't load. */
 export async function createHand(onProgress: (p: number) => void = () => {}): Promise<Hand> {
   const url = '/models/hand.glb';
   if (await hasModel(url)) {
     try {
-      const { loadGltfHand } = await import('./GltfHand');
-      return await loadGltfHand(url, onProgress);
+      const { loadRiggedHand } = await import('./RiggedHand');
+      return await loadRiggedHand(url, onProgress);
     } catch (err) {
       console.warn('[hand] hand.glb failed to load, using the procedural hand', err);
     }

@@ -3,6 +3,7 @@ import {
   DoubleSide,
   MeshPhysicalMaterial,
   ShaderChunk,
+  Vector3,
   type IUniform,
   type WebGLProgramParametersWithUniforms,
 } from 'three';
@@ -22,17 +23,28 @@ const skinLights = ShaderChunk.lights_physical_pars_fragment.replace(
 );
 
 const detailVertex = /* glsl */ `
-attribute vec3 aDetail;
+attribute vec4 aDetail;
 attribute float aFade;
-varying vec3 vDetail;
+#ifdef HAND_REST
+attribute vec3 aRest;
+#endif
+#ifdef HAND_NAILS
+attribute vec2 aNail;
+varying vec2 vNail;
+#endif
+varying vec4 vDetail;
 varying vec3 vRest;
 varying float vFade;
 `;
 
 const detailFragment = /* glsl */ `
-varying vec3 vDetail;
+uniform vec3 uCreases[5];
+varying vec4 vDetail;
 varying vec3 vRest;
 varying float vFade;
+#ifdef HAND_NAILS
+varying vec2 vNail;
+#endif
 
 float hHash(vec3 p) {
   p = fract(p * 0.3183099 + 0.1);
@@ -64,7 +76,12 @@ float skinHeight(out float cavity) {
   float palmSide = smoothstep(0.25, 0.85, side);
   float back = smoothstep(0.25, 0.85, -side);
   if (region > 0.5) {
-    float jd = vDetail.x;
+    // Signed distance to the nearest crease on this digit. The along-digit
+    // distance interpolates exactly, so creases stay crisp on a coarse mesh.
+    vec3 c = uCreases[int(vDetail.w + 0.5)];
+    vec3 dc = vDetail.x - c;
+    float jd = abs(dc.x) < abs(dc.y) ? dc.x : dc.y;
+    jd = abs(jd) < abs(dc.z) ? jd : dc.z;
     float crease = exp(-pow(jd / 0.02, 2.0)) * palmSide;
     h -= crease * 0.0025;
     cavity += crease * 0.6;
@@ -82,17 +99,28 @@ float skinHeight(out float cavity) {
     float d = min(min(life, head), min(heart, wrist));
     // Depth wanders along each line so it reads as skin, not as a drawing.
     float depth = 0.55 + 0.45 * vnoise(p * 11.0);
-    float crease = exp(-pow(d / 0.014, 2.0)) * palmSide * depth;
+    float crease = exp(-pow(d / 0.012, 2.0)) * palmSide * depth * 0.6;
     float minor = exp(-pow(abs(sin(q.x * 30.0 + q.y * 17.0 + vnoise(p * 7.0) * 4.0)) / 0.08, 2.0));
     minor *= 0.3 * palmSide * smoothstep(0.0, 0.3, q.y);
-    h -= crease * 0.005 + minor * 0.0008;
-    cavity += crease * 0.8;
+    h -= crease * 0.004 + minor * 0.0005;
+    cavity += crease * 0.55;
   }
   return h;
 }
 
 float fadeHash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 `;
+
+export interface HandOptions {
+  /** Procedural detail from aDetail/aFade (and vertex colours). */
+  detail?: boolean;
+  /** Crease positions along each digit: index, middle, ring, pinky, thumb. */
+  creases?: [number, number, number][];
+  /** Read palm coordinates from aRest instead of the bind-pose position. */
+  rest?: boolean;
+  /** Draw nails in the shader from aNail (for meshes without nail geometry). */
+  nails?: boolean;
+}
 
 export interface HandMaterial {
   material: MeshPhysicalMaterial;
@@ -122,11 +150,14 @@ function injectRim(shader: WebGLProgramParametersWithUniforms, rim: IUniform<num
 
 /**
  * Skin: physical shading with sheen, wrap-lit subsurface tint and a fresnel rim
- * (what bloom catches during the pulse). With `detail`, the procedural hand's
- * creases, wrinkles and pores are bump-mapped from its aDetail attribute, and the
- * forearm dissolves out through dithering.
+ * (what bloom catches during the pulse). With `detail`, creases, wrinkles and
+ * pores are bump-mapped from the aDetail attribute, and the forearm dissolves
+ * out through dithering.
  */
-export function createHandMaterial(detail = false): HandMaterial {
+export function createHandMaterial(opts: HandOptions = {}): HandMaterial {
+  const { detail = false, rest = false, nails = false } = opts;
+  const creases = (opts.creases ?? []).map((c) => new Vector3(...c));
+  while (creases.length < 5) creases.push(new Vector3(99, 99, 99));
   const rim: IUniform<number> = { value: 0.18 };
   const material = new MeshPhysicalMaterial({
     color: new Color('#c4927a'),
@@ -137,14 +168,29 @@ export function createHandMaterial(detail = false): HandMaterial {
     sheenRoughness: 0.55,
     sheenColor: new Color('#ffb59c'),
   });
+  material.defines = {
+    ...(rest ? { HAND_REST: '' } : {}),
+    ...(nails ? { HAND_NAILS: '' } : {}),
+  };
   material.onBeforeCompile = (shader) => {
     injectRim(shader, rim);
     if (!detail) return;
+    shader.uniforms.uCreases = { value: creases };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `${detailVertex}\n#include <common>`)
       .replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\nvRest = position;\nvDetail = aDetail;\nvFade = aFade;',
+        /* glsl */ `#include <begin_vertex>
+        #ifdef HAND_REST
+          vRest = aRest;
+        #else
+          vRest = position;
+        #endif
+        #ifdef HAND_NAILS
+          vNail = aNail;
+        #endif
+        vDetail = aDetail;
+        vFade = aFade;`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${detailFragment}`)
@@ -168,11 +214,28 @@ export function createHandMaterial(detail = false): HandMaterial {
           grad *= min( 1.0, 0.45 * abs( det ) / max( length( grad ), 1e-8 ) );
           normal = normalize( abs( det ) * normal - grad );
           diffuseColor.rgb *= 1.0 - 0.2 * saturate( cavity );
-        }`,
+        }
+        #ifdef HAND_NAILS
+        {
+          // vNail: x runs 0 to 1 from the last knuckle to the fingertip, y is how
+          // squarely the surface faces the back of the finger.
+          float along = smoothstep( 0.36, 0.5, vNail.x ) * ( 1.0 - smoothstep( 0.9, 1.0, vNail.x ) );
+          float across = smoothstep( 0.45, 0.72, vNail.y );
+          float nail = along * across;
+          float freeEdge = smoothstep( 0.88, 0.97, vNail.x ) * nail;
+          // A pinker, glossier patch rather than a painted shape.
+          diffuseColor.rgb *= mix( vec3( 1.0 ), vec3( 1.04, 0.9, 0.9 ), nail * 0.8 );
+          diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.9, 0.82, 0.76 ), freeEdge * 0.35 );
+          roughnessFactor = mix( roughnessFactor, 0.32, nail );
+          // A faint lip where the nail meets the skin.
+          diffuseColor.rgb *= 1.0 - 0.5 * nail * ( 1.0 - nail );
+        }
+        #endif`,
       );
   };
   // Distinct program key, since the detail variant rewrites more of the shader.
-  material.customProgramCacheKey = () => (detail ? 'skin-detail' : 'skin');
+  material.customProgramCacheKey = () =>
+    `skin${detail ? '-detail' : ''}${rest ? '-rest' : ''}${nails ? '-nails' : ''}`;
   return { material, rim };
 }
 
