@@ -18,6 +18,10 @@ export class Hero {
       <h1 class="hero__name"></h1>
       <p class="hero__tagline mono"></p>`;
     root.append(this.el);
+    // The sections hang off the header's real height, so a wrapped name never collides.
+    new ResizeObserver(() =>
+      document.documentElement.style.setProperty('--hero-h', `${this.el.offsetHeight}px`),
+    ).observe(this.el);
     this.name = this.el.querySelector('.hero__name') as HTMLElement;
     this.tagline = this.el.querySelector('.hero__tagline') as HTMLElement;
   }
