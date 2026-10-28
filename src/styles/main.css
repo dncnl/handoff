@@ -365,8 +365,9 @@ a {
 .sections {
   position: fixed;
   left: var(--gutter);
-  top: clamp(200px, 34dvh, 340px);
-  bottom: 120px;
+  /* Sits a fixed step below the header; --hero-h is measured live by Hero. */
+  top: calc(var(--gutter) + var(--hero-h, 110px) + var(--s-7));
+  bottom: 96px;
   width: min(440px, 38vw);
   outline: none;
 }
